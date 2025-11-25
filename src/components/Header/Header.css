@@ -1,0 +1,233 @@
+/* ========== GLOBAL HEADER ========== */
+
+.header {
+  width: 100%;
+  height: 12vh;                 /* Tổng chiều cao header 12% */
+  background-color: #204ecf;
+  display: flex;
+  flex-direction: column;
+  color: #ffffff;
+}
+
+/* Container chuẩn */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Logo container trong header */
+.header .logo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  padding: 0;
+}
+
+/* Logo image */
+.logo img {
+  height: 38px;
+  display: block;
+}
+
+/* ========== TOP BAR (8vh) ========== */
+
+.header-top {
+  height: 8vh;
+  display: flex;
+  align-items: center;
+  padding: 6px 0;               /* để logo không dính mép trên */
+}
+
+.header-top-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 18px;
+}
+
+/* ========== SEARCH BOX ========== */
+
+.search-box {
+  flex: 1;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-btn {
+  width: 42px;
+  border: none;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.search-btn i {
+  font-size: 16px;
+  color: #204ecf;
+}
+
+/* ========== RIGHT SIDE ========== */
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Hotline */
+.hotline-title {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.hotline-number {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Icons chung */
+.header-icons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-item i {
+  font-size: 18px;
+  margin-bottom: 1px;
+}
+
+.icon-item span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ========== NÚT ĐĂNG NHẬP / USER ========== */
+
+/* Nút Đăng Nhập là <button>, reset lại style mặc định */
+.header-icons .login-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.header-icons .login-btn i {
+  font-size: 18px;
+}
+
+.header-icons .login-btn span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* hiệu ứng hover nhẹ giống link */
+.header-icons .login-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ====== WRAPPER + DROPDOWN USER ====== */
+
+.user-menu-wrapper {
+  position: relative;
+}
+
+/* Hộp dropdown tài khoản */
+.user-dropdown {
+  position: absolute;
+  top: 130%;
+  right: 0;
+  background: #ffffff;
+  color: #000000;
+  min-width: 180px;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  padding: 6px 0;
+  z-index: 1000;
+}
+
+/* Nút bên trong dropdown */
+.user-dropdown button {
+  width: 100%;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.user-dropdown button:hover {
+  background: #f3f4f6;
+}
+
+/* ========== CART BADGE ========== */
+
+.cart {
+  position: relative;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  background: #ffd145;
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========== NAVBAR (4vh) ========== */
+
+.header-nav {
+  height: 4vh;
+  display: flex;
+  align-items: center;
+  background-color: #204ecf;
+}
+
+.nav-menu {
+  list-style: none;
+  display: flex;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.nav-menu li:hover {
+  opacity: 0.75;
+}
