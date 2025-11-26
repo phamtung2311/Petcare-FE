@@ -156,9 +156,17 @@ const Login: React.FC<LoginProps> = ({ onClose, onLoginSuccess }) => {
             {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
           </button>
 
-          <button type="button" className="login-register">
-            Tạo Tài Khoản
-          </button>
+          <button
+  type="button"
+  className="login-register"
+  onClick={() => {
+    onClose();            // đóng popup
+    navigate("/register"); // chuyển trang đăng ký
+  }}
+>
+  Tạo Tài Khoản
+</button>
+
         </form>
       </div>
     </div>
