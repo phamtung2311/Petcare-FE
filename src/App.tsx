@@ -15,6 +15,8 @@ import Admin from "./components/Admin/Admin";
 import Dashboard from "./components/Admin/Dashboard/Dashboard";
 import Revenue from "./components/Admin/Revenue/Revenue";
 import OrderDetail from "./components/Admin/OrderDetail/OrderDetail";
+import OrderList from "./components/Admin/OrderList/OrderList";
+import ProductList from "./components/Admin/ProductList/ProductList";
 const MainLayout: React.FC = () => {
   return (
     <>
@@ -46,6 +48,8 @@ const App: React.FC = () => {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="revenue" element={<Revenue />} />
         <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="orders" element={<OrderList />} />
+        <Route path="products" element={<ProductList />} /> {/* 👈 Route mới */}
            {/* Tại đây bạn sẽ định nghĩa các trang con của Admin sau này */}
            {/* Ví dụ: <Route path="dashboard" element={<Dashboard />} /> */}
         </Route>

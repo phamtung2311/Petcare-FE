@@ -1,0 +1,180 @@
+/* Container chính */
+.order-list-container {
+  padding: 24px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 24px;
+}
+
+/* 1. THANH TAB LỌC TRẠNG THÁI */
+.status-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.tab-btn.active {
+  background-color: #2563eb;
+  color: white;
+  border-color: #2563eb;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+}
+
+/* 2. BẢNG DANH SÁCH */
+.table-wrapper {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-x: auto; /* Cho phép cuộn ngang trên mobile */
+  border: 1px solid #e5e7eb;
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 800px; /* Đảm bảo bảng không bị co quá nhỏ */
+}
+
+.order-table th {
+  background-color: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  text-align: left;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.order-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #4b5563;
+  vertical-align: middle;
+}
+
+.order-table tr:last-child td {
+  border-bottom: none;
+}
+
+.order-table tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Utility Classes trong bảng */
+.fw-bold { font-weight: 700; color: #111827; }
+.text-primary { color: #2563eb; }
+.customer-name { font-weight: 500; color: #1f2937; }
+.payment-method { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+/* BADGES TRẠNG THÁI (Dùng chung) */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.status-PENDING { background-color: #fff7ed; color: #ea580c; }
+.status-SHIPPING { background-color: #eff6ff; color: #2563eb; }
+.status-DELIVERED { background-color: #f0fdf4; color: #059669; }
+.status-COMPLETED { background-color: #dcfce7; color: #15803d; }
+.status-CANCELLED { background-color: #fef2f2; color: #dc2626; }
+
+/* CỘT HÀNH ĐỘNG */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-view {
+  padding: 6px 12px;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.btn-view:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.quick-status-select {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #374151;
+  background-color: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.quick-status-select:focus {
+  border-color: #2563eb;
+}
+
+/* 3. PHÂN TRANG */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.pagination button {
+  padding: 8px 16px;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.no-data, .loading-text {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-style: italic;
+}
