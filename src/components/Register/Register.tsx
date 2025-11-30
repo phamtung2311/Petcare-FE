@@ -69,7 +69,7 @@ const Register: React.FC = () => {
             if (res.data.status === 200 || res.data.status === 201) {
                 setSuccess(true);
                 setTimeout(() => {
-                    navigate("/login");
+                    navigate("/customer");
                 }, 1000);
             } else {
                 setMessage(res.data.message || "Đăng ký không thành công.");

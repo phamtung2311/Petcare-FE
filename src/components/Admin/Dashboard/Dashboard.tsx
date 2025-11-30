@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // 🟢 1. Import useNavigate
+import { useNavigate } from "react-router-dom";
 import api from "../../../api/axiosInstance";
 import "./Dashboard.css";
 
@@ -21,7 +21,7 @@ interface OrderDetail {
 }
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate(); // 🟢 2. Khởi tạo hook điều hướng
+  const navigate = useNavigate();
 
   // --- STATE ---
   const [stats, setStats] = useState<OrderStatistic | null>(null);
@@ -40,7 +40,6 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Lưu ý: Dùng api instance đã cấu hình sẵn
         const [statsRes, ordersRes] = await Promise.all([
           api.get("/orders/stats"),
           api.get("/orders?page=1&size=5")
@@ -61,28 +60,23 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  // --- 🟢 3. CÁC HÀM XỬ LÝ SỰ KIỆN (ACTIONS) ---
+  // --- CÁC HÀM XỬ LÝ SỰ KIỆN (ACTIONS) ---
 
-  // Chuyển hướng khi bấm vào Card thống kê
   const handleStatClick = (statusFilter: string) => {
-    // Chuyển sang trang danh sách đơn hàng và kèm theo param status
-    // Ví dụ: /admin/orders?status=PENDING
     navigate(`/admin/orders?status=${statusFilter}`);
   };
 
-  // Chuyển hướng xem chi tiết 1 đơn hàng
   const handleOrderClick = (orderId: number) => {
     navigate(`/admin/orders/${orderId}`);
   };
 
-  // Chuyển hướng xem tất cả đơn hàng
   const handleViewAllOrders = () => {
     navigate("/admin/orders");
   };
 
-  // Xử lý nút Lịch hẹn (Chưa có BE)
+  // 🟢 ĐÃ SỬA: Chuyển hướng đến trang Lịch hẹn (/admin/calendar)
   const handleBookingAction = () => {
-    alert("Tính năng Quản lý lịch hẹn đang được phát triển!");
+    navigate("/admin/calendar");
   };
 
   // --- HELPER FORMAT ---
@@ -107,22 +101,21 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Dữ liệu Cards (Có thêm trường filterStatus để phục vụ click)
   const statsCards = [
     {
       label: "Doanh thu tổng",
       value: stats ? formatCurrency(stats.revenue) : "0đ",
       icon: "💰",
       color: "#10b981",
-      filterStatus: "", // Click vào doanh thu thì hiện tất cả (hoặc trang báo cáo doanh thu riêng)
-      action: () => navigate("/admin/revenue") // Nếu bạn có trang doanh thu riêng
+      filterStatus: "",
+      action: () => navigate("/admin/revenue")
     },
     {
       label: "Đơn chờ duyệt",
       value: stats ? stats.newOrders : 0,
       icon: "🛒",
       color: "#3b82f6",
-      filterStatus: "PENDING", // Click vào sẽ lọc đơn Pending
+      filterStatus: "PENDING",
       action: () => handleStatClick("PENDING")
     },
     {
@@ -155,8 +148,8 @@ const Dashboard: React.FC = () => {
           <div 
             className="stat-card" 
             key={index}
-            onClick={stat.action ? stat.action : undefined} // Gắn sự kiện click
-            style={{ cursor: "pointer" }} // Biểu tượng bàn tay khi hover
+            onClick={stat.action ? stat.action : undefined}
+            style={{ cursor: "pointer" }}
           >
             <div className="stat-icon" style={{ backgroundColor: stat.color + "20", color: stat.color }}>
               {stat.icon}
@@ -196,8 +189,8 @@ const Dashboard: React.FC = () => {
                   return (
                     <tr 
                       key={order.id} 
-                      onClick={() => handleOrderClick(order.id)} // Click dòng -> Xem chi tiết
-                      className="clickable-row" // Class CSS để hover đẹp hơn
+                      onClick={() => handleOrderClick(order.id)}
+                      className="clickable-row"
                     >
                       <td>#{order.id}</td>
                       <td>
@@ -226,6 +219,7 @@ const Dashboard: React.FC = () => {
         <div className="card dashboard-section">
           <div className="section-header">
             <h3>Lịch hẹn sắp tới</h3>
+            {/* Nút Xem lịch sẽ dẫn đến /admin/calendar */}
             <button className="view-all-btn" onClick={handleBookingAction}>Xem lịch</button>
           </div>
           <div className="booking-list">
@@ -240,6 +234,7 @@ const Dashboard: React.FC = () => {
                     Bé <strong>{booking.pet}</strong> - Chủ: {booking.owner}
                   </div>
                 </div>
+                {/* Nút Chi tiết cũng dẫn đến trang lịch hẹn */}
                 <button className="action-btn-sm" onClick={handleBookingAction}>Chi tiết</button>
               </div>
             ))}
