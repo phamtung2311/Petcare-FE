@@ -3,7 +3,8 @@ import api from "../../api/axiosInstance";
 import { useNavigate, useSearchParams } from "react-router-dom"; 
 import "./Customer.css";
 
-const PAGE_SIZE = 30;
+// 🟢 ĐÃ SỬA LẠI THÀNH 30 THEO YÊU CẦU
+const PAGE_SIZE = 30; 
 
 interface Category {
   id: number;
@@ -22,7 +23,7 @@ interface Product {
   description?: string;
   categoryId?: number;
   categoryName?: string;
-  salePrice?: number;
+  stock?: number;
   images?: ProductImage[];
 }
 
@@ -53,7 +54,10 @@ const Customer: React.FC = () => {
     const fetchCategories = async () => {
       try {
         const res = await api.get("/categories/list");
-        setCategories(res.data.data.categories || []);
+        if (res.data && res.data.status === 200 && res.data.data) {
+             const categoryData = res.data.data.categories || [];
+             setCategories(categoryData);
+        }
       } catch (err) {
         console.error("Lỗi categories:", err);
       }
@@ -76,22 +80,37 @@ const Customer: React.FC = () => {
       const finalKeyword = searchKeyword || typeKeyword;
 
       const params: any = {
+        page: page > 0 ? page - 1 : 0, 
+        size: PAGE_SIZE, // Sử dụng constant 30 ở trên
         sort: sort,
-        page: page,
-        size: PAGE_SIZE,
-        keyword: finalKeyword, 
+        isDeleted: false, // Giữ nguyên fix để hiện sản phẩm giống Admin
       };
+
+      if (finalKeyword) {
+          params.keyword = finalKeyword;
+      }
 
       if (selectedCategories.length > 0) {
         params.categoryId = selectedCategories.join(",");
       }
 
+      console.log("Customer API params:", params);
+      
       const res = await api.get("/products/list", { params });
       
-      setProducts(res.data.data.products);
-      setTotalPages(res.data.data.totalPages ?? 1);
+      if (res.data && res.data.status === 200 && res.data.data) {
+        const data = res.data.data;
+        const productList = data.products || data.content || [];
+        
+        setProducts(productList);
+        setTotalPages(data.totalPages || 1);
+      } else {
+          setProducts([]);
+      }
+
     } catch (err) {
       console.error("Lỗi load products", err);
+      setProducts([]); 
     } finally {
       setLoading(false);
     }
@@ -99,6 +118,7 @@ const Customer: React.FC = () => {
 
   useEffect(() => {
     fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sort, selectedCategories, searchParams]); 
 
   // --- HANDLERS ---
@@ -106,7 +126,7 @@ const Customer: React.FC = () => {
     setSelectedCategories((prev) =>
       prev.includes(id) ? prev.filter((cid) => cid !== id) : [...prev, id]
     );
-    setPage(1);
+    setPage(1); 
   };
 
   const handleFilter = () => {
@@ -129,7 +149,6 @@ const Customer: React.FC = () => {
     }
   };
 
-  // 🟢 SỬA LỖI TẠI ĐÂY: Thêm productId vào state
   const handleBuyNow = (product: Product) => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -140,13 +159,16 @@ const Customer: React.FC = () => {
       state: { 
         items: [{ 
             ...product, 
-            productId: product.id, // 🟢 QUAN TRỌNG: Phải có trường này
+            productId: product.id, 
             quantity: 1, 
             type: 'product' 
         }] 
       } 
     });
   };
+
+  const formatCurrency = (val: number) => 
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
   return (
     <div className="customer-page">
@@ -186,16 +208,23 @@ const Customer: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="loading">Đang tìm kiếm sản phẩm...</div>
+          <div className="loading">Đang tải sản phẩm...</div>
         ) : products.length === 0 ? (
           <div className="empty-state" style={{textAlign:'center', padding: 50, color: '#888'}}>
              <p>Không tìm thấy sản phẩm nào phù hợp.</p>
-             <button onClick={() => navigate("/customer")} style={{marginTop:10, padding:'8px 15px', cursor:'pointer'}}>Xem tất cả</button>
+             <button onClick={() => {
+                 setPage(1);
+                 setSelectedCategories([]);
+                 navigate("/customer"); 
+             }} style={{marginTop:10, padding:'8px 15px', cursor:'pointer'}}>
+                 Xem tất cả
+             </button>
           </div>
         ) : (
           <div className="product-grid">
             {products.map((p) => {
-              const firstImageUrl = p.images?.length ? p.images[0].imageUrl : undefined;
+              const firstImageUrl = p.images && p.images.length > 0 ? p.images[0].imageUrl : undefined;
+              
               return (
                 <div className="product-card" key={p.id}>
                   <div className="product-image-wrap">
@@ -212,11 +241,11 @@ const Customer: React.FC = () => {
                   </div>
 
                   <div className="product-info">
-                    <div className="product-brand">{p.categoryName}</div>
+                    <div className="product-brand">{p.categoryName || "PetCare"}</div>
                     <div className="product-name" title={p.name}>{p.name}</div>
                     <div className="product-price-wrap">
                       <span className="product-price">
-                        {p.price.toLocaleString()}đ
+                        {formatCurrency(p.price)}
                       </span>
                     </div>
                   </div>
@@ -226,11 +255,25 @@ const Customer: React.FC = () => {
           </div>
         )}
 
-        <div className="pagination">
-          {page > 1 && <button onClick={() => setPage(page - 1)}>&laquo; Trước</button>}
-          <span>Trang {page}/{totalPages}</span>
-          {page < totalPages && <button onClick={() => setPage(page + 1)}>Sau &raquo;</button>}
-        </div>
+        {products.length > 0 && (
+            <div className="pagination">
+            <button 
+                disabled={page <= 1} 
+                onClick={() => setPage(page - 1)}
+                className={page <= 1 ? "disabled" : ""}
+            >
+                &laquo; Trước
+            </button>
+            <span>Trang {page}/{totalPages}</span>
+            <button 
+                disabled={page >= totalPages} 
+                onClick={() => setPage(page + 1)}
+                className={page >= totalPages ? "disabled" : ""}
+            >
+                Sau &raquo;
+            </button>
+            </div>
+        )}
       </main>
     </div>
   );

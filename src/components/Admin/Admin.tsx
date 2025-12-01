@@ -13,6 +13,7 @@ const Admin: React.FC = () => {
     { path: "/admin/calendar", label: "Lịch hẹn", icon: "📅" },
     { path: "/admin/customers", label: "Khách hàng", icon: "👥" },
     { path: "/admin/staff", label: "Nhân viên", icon: "👔" },
+    { path: "/admin/couponManagement", label: "Khuyến mãi", icon: "👫" },
   ];
 
   // 👇 3. Hàm xử lý đăng xuất
