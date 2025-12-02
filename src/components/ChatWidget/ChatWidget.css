@@ -1,0 +1,103 @@
+/* ===== Khung chat tổng ===== */
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  height: 450px;
+  width: 350px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+/* ===== Header ===== */
+.chat-header {
+  background: #FF6B6B;
+  color: white;
+  padding: 10px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ===== Body ===== */
+.chat-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.chat-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-body::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+/* ===== Tin nhắn ===== */
+
+.message-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.message-user {
+  background: #007bff;
+  color: white;
+  align-self: flex-end;
+}
+
+.message-model {
+  background: #e9ecef;
+  color: #000;
+  align-self: flex-start;
+}
+
+/* Loading text */
+.loading-dots {
+  color: #888;
+  font-style: italic;
+  margin: 5px 0;
+}
+
+/* ===== Footer ===== */
+.chat-footer {
+  padding: 10px;
+  display: flex;
+  gap: 5px;
+  border-top: 1px solid #eee;
+}
+
+.chat-footer input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+
+.chat-footer button {
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.chat-footer button:hover {
+  background: #0063d4;
+}
+
+.chat-footer button:disabled {
+  background: #94baf3;
+  cursor: not-allowed;
+}
