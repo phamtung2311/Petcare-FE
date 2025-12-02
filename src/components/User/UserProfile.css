@@ -436,3 +436,95 @@
     padding-bottom: 10px;
   }
 }
+/* ... Các style cũ giữ nguyên ... */
+
+/* Style cho từng dòng sản phẩm trong đơn hàng */
+.order-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+.order-item-row:last-child {
+    border-bottom: none;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.item-meta {
+    font-size: 0.85rem;
+    color: #777;
+}
+
+/* Nút Đánh giá nhỏ */
+.btn-review-item {
+    background-color: #fff;
+    border: 1px solid #ff9800;
+    color: #ff9800;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-review-item:hover {
+    background-color: #ff9800;
+    color: white;
+}
+
+/* Modal Đánh giá */
+.review-modal {
+    text-align: center;
+}
+
+.review-product-name {
+    font-weight: bold;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+.star-rating-input {
+    font-size: 2rem;
+    color: #ddd;
+    margin-bottom: 15px;
+    cursor: pointer;
+}
+
+.star-rating-input .star {
+    transition: color 0.2s;
+}
+
+.star-rating-input .star.filled {
+    color: #ffc107;
+}
+
+.star-rating-input .star:hover {
+    color: #ffdb6d; /* Màu khi hover */
+}
+
+.review-textarea {
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: none;
+    margin-bottom: 15px;
+    font-family: inherit;
+}
+
+.review-textarea:focus {
+    outline: none;
+    border-color: #007bff;
+}
