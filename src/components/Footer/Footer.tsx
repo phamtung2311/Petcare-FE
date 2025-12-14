@@ -13,10 +13,10 @@ const Footer: React.FC = () => {
             {/* Cột 1: Thông tin cửa hàng */}
             <div className="footer-col">
               <Link to="/" className="footer-logo">
-                <img src="https://placehold.co/150x50?text=PetCare" alt="PetCare Logo" />
+                <img src="src\img\logo 01.png" alt="PetCare Logo"/>
               </Link>
               <p className="footer-desc">
-                PetCare - Hệ thống cửa hàng thú cưng uy tín hàng đầu. Chúng tôi cung cấp các sản phẩm, dịch vụ chăm sóc tốt nhất cho người bạn nhỏ của bạn.
+                PetCare - Hệ thống cửa hàng thú cưng uy tín hàng đầu. Chúng tôi cung cấp các sản phẩm tốt nhất cho người bạn nhỏ của bạn.
               </p>
               <div className="contact-info">
                 <p><i className="fas fa-map-marker-alt"></i> 123 Đường Láng, Đống Đa, Hà Nội</p>

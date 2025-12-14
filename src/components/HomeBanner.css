@@ -1,0 +1,170 @@
+/* =========================================
+   HOME BANNER & POLICY STYLES
+   ========================================= */
+
+/* Wrapper tổng để tạo khoảng cách */
+.banner-wrapper {
+  background-color: #f3f4f6; /* Trùng màu nền main */
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+/* --- 1. BANNER CHÍNH --- */
+.main-banner {
+  width: 100%;
+  margin-bottom: 20px; /* Khoảng cách với các ô bên dưới */
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); /* Bóng nhẹ */
+  position: relative;
+}
+
+.banner-image-container {
+  position: relative;
+  width: 100%;
+  /* Tỷ lệ khung hình banner (Ví dụ: 1200x400 -> padding-top ~33%) */
+  /* Hoặc set chiều cao cố định */
+  height: 500px; 
+}
+
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Đảm bảo ảnh full khung */
+  object-position: center;
+  display: block;
+}
+
+/* Nút Next/Prev trên Banner */
+.banner-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #153587;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.banner-nav:hover {
+  background: white;
+  color: #dc2626; /* Hover màu đỏ */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.banner-nav.prev { left: 20px; }
+.banner-nav.next { right: 20px; }
+
+/* Dots indicator */
+.banner-dots {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.dot.active {
+  background: #ffeb3b; /* Màu vàng nổi bật */
+  width: 30px;
+  border-radius: 10px;
+}
+
+/* --- 2. POLICY GRID (CÁC Ô DƯỚI) --- */
+.policy-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 Cột đều nhau */
+  gap: 15px;
+}
+
+.policy-item {
+  background: #ffffff;
+  padding: 20px 15px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  border: 1px solid transparent;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.policy-item:hover {
+  transform: translateY(-3px);
+  border-color: #153587; /* Hover viền xanh */
+}
+
+/* Icon box */
+.policy-icon-box {
+  width: 50px;
+  height: 50px;
+  background: #f0f4ff; /* Nền xanh rất nhạt */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.policy-icon-box i {
+  font-size: 1.5rem;
+  color: #153587; /* Icon màu xanh chủ đạo */
+}
+
+/* Text info */
+.policy-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.policy-title {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  text-transform: uppercase;
+}
+
+.policy-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 992px) {
+  .banner-image-container { height: 300px; }
+  .policy-grid { grid-template-columns: repeat(2, 1fr); } /* Tablet: 2 cột */
+}
+
+@media (max-width: 576px) {
+  .banner-image-container { height: 180px; }
+  .policy-grid { grid-template-columns: 1fr; } /* Mobile: 1 cột dọc */
+  .policy-item { padding: 15px; }
+}
+
+.fade-animation {
+  animation: fadeEffect 0.8s ease-in-out;
+}
+
+@keyframes fadeEffect {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}

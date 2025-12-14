@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import "./Header.css";
 import Login from "../Login/Login";
-import logo from "../../img/Anh web.png";
+import logo from "../../img/logo 01.png";
 
 interface Category {
   id: number;

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import Header from "./components/Header/Header";
-import "./App.css"; // Chứa các class .app-wrapper, .main-content
-import "./index.css"; // Chứa biến màu và reset CSS Neo-Brutalism
+import HomeBanner from "./components/HomeBanner"; // Import HomeBanner mới
+import "./App.css"; 
+import "./index.css"; 
 
 // --- Import các trang Customer ---
 import Customer from "./components/Customer/Customer";
@@ -39,18 +40,22 @@ import ContactButtons from "./components/ChatWidget/ContactButtons";
 const MainLayout: React.FC = () => {
   // Tạo state để quản lý việc Bật/Tắt khung chat
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const location = useLocation(); // Lấy đường dẫn hiện tại
 
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
   };
 
+  // Chỉ hiện Banner ở trang chủ ("/" hoặc "/customer")
+  const showBanner = location.pathname === "/" || location.pathname === "/customer";
+
   return (
     <div className="app-wrapper">
       <Header />
       
-      {/* CẬP NHẬT: Đã bỏ style inline. 
-         Class .main-content trong App.css sẽ lo phần padding và max-width 
-      */}
+      {/* Hiển thị Banner nếu đang ở trang chủ */}
+      {showBanner && <HomeBanner />}
+      
       <div className="main-content">
         <Outlet />
       </div>
@@ -63,8 +68,8 @@ const MainLayout: React.FC = () => {
       {isChatOpen && (
         <div style={{ 
             position: 'fixed', 
-            bottom: '90px', // Đẩy cao lên một chút để tách biệt khỏi nút bấm
-            right: '130px',  // Căn lề phải chuẩn theo phong cách gọn gàng
+            bottom: '90px', 
+            right: '130px', 
             zIndex: 1999 
         }}>
            <ChatWidget />
@@ -85,7 +90,7 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* === NHÓM 1: KHÁCH HÀNG (Main Layout + Chat Widget + Zalo) === */}
+        {/* === NHÓM 1: KHÁCH HÀNG (Main Layout + Banner + Chat Widget) === */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Customer />} />
           <Route path="/customer" element={<Customer />} />
