@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // 1. Thêm useRef
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import "./Header.css";
@@ -18,6 +18,9 @@ const Header: React.FC = () => {
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [cartCount, setCartCount] = useState(0);
+
+  // 2. Tạo ref để xác định vùng menu user
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
 
@@ -64,7 +67,30 @@ const Header: React.FC = () => {
     };
   }, [currentUserName]); 
 
-  // --- HANDLERS (LOGIC GỐC) ---
+  // 3. Logic xử lý Click ra ngoài (Click Outside)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Nếu menu đang mở và vị trí click KHÔNG nằm trong menuRef
+      if (
+        userMenuOpen && 
+        menuRef.current && 
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    // Lắng nghe sự kiện mousedown trên toàn document
+    document.addEventListener("mousedown", handleClickOutside);
+    
+    // Cleanup khi component unmount
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userMenuOpen]);
+
+
+  // --- HANDLERS ---
   const handleUserButtonClick = () => {
     if (!currentUserName) {
       setShowLogin(true);
@@ -142,21 +168,30 @@ const Header: React.FC = () => {
 
               <div className="header-icons">
                 {/* User Info */}
-                <div className="user-menu-wrapper">
+                {/* 4. Gắn ref vào thẻ bao quanh nút User và Menu dropdown */}
+                <div className="user-menu-wrapper" ref={menuRef}>
                   <button className="icon-item login-btn neo-btn secondary" onClick={handleUserButtonClick}>
                     <i className={currentUserName ? "fas fa-user-check" : "far fa-user"} />
                     <span>{currentUserName ? ` ${currentUserName}` : " Đăng Nhập"}</span>
                   </button>
 
-                  {/* KHÔI PHỤC LOGIC HIỂN THỊ MENU */}
                   {currentUserName && userMenuOpen && (
                     <div className="user-dropdown">
                       <button onClick={() => { navigate("/profile"); setUserMenuOpen(false); }}>
                         <i className="fas fa-id-card"></i> Hồ sơ cá nhân
                       </button>
+                      
+                      <button onClick={() => { 
+                          navigate("/profile", { state: { activeTab: 'orders' } }); 
+                          setUserMenuOpen(false); 
+                      }}>
+                        <i className="fas fa-shopping-bag"></i> Đơn hàng của tôi
+                      </button>
+
                       <button onClick={() => { navigate("/my-pets"); setUserMenuOpen(false); }}>
                         <i className="fas fa-paw"></i> Thú cưng của tôi
                       </button>
+                      
                       <button onClick={handleLogout} className="logout-btn">
                         <i className="fas fa-sign-out-alt"></i> Đăng xuất
                       </button>
@@ -190,7 +225,6 @@ const Header: React.FC = () => {
                 <Link to="/customer" onClick={handleLinkClick}>
                   <i className="fas fa-boxes"></i> Sản phẩm <i className="fas fa-chevron-down" style={{fontSize: 10, marginLeft: 5}}></i>
                 </Link>
-                {/* Giữ nguyên logic hiển thị sub-menu khi hover */}
                 <ul className="sub-menu neo-dropdown">
                   {categories.length > 0 ? (
                     categories.map((cat) => (

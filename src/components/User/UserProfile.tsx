@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+// THÊM: Import useLocation
+import { useLocation } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import "./UserProfile.css";
 
@@ -54,7 +56,21 @@ interface ReviewForm {
 }
 
 const UserProfile: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'info' | 'orders'>('info');
+  // THÊM: Hook location để lấy state truyền từ Header
+  const location = useLocation();
+
+  // SỬA: Logic khởi tạo activeTab dựa trên state
+  const [activeTab, setActiveTab] = useState<'info' | 'orders'>(() => {
+    return location.state?.activeTab === 'orders' ? 'orders' : 'info';
+  });
+
+  // THÊM: Effect để lắng nghe thay đổi nếu user click menu khi đang ở trang này
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
+
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
