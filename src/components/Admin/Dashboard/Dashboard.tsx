@@ -3,15 +3,23 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../api/axiosInstance";
 import "./Dashboard.css";
 
-// --- INTERFACES ---
-interface OrderStatistic {
-  revenue: number;
-  newOrders: number;
-  shippingOrders: number;
-  cancelledOrders: number;
+// --- 1. INTERFACES (Đồng bộ với Revenue.tsx) ---
+
+// Interface cho thống kê tổng hợp (Lấy từ Revenue.tsx)
+interface RevenueStats {
+  totalRevenue: number;         // Tổng doanh thu (Đơn + Dịch vụ)
+  totalOrderRevenue: number;    // Doanh thu đơn hàng
+  totalServiceRevenue: number;  // Doanh thu dịch vụ
   totalOrders: number;
+  successOrders: number;        // Đơn thành công
+  cancelledOrders: number;      // Đơn hủy
+  totalAppointments: number;
+  completedAppointments: number;// Lịch hoàn thành
+  cancelledAppointments: number;// Lịch hủy
+  // Các trường array (chart, top list...) có thể bỏ qua nếu Dashboard không vẽ biểu đồ chi tiết
 }
 
+// Interface cho danh sách đơn hàng gần đây
 interface OrderDetail {
   id: number;
   customerName: string;
@@ -24,11 +32,11 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // --- STATE ---
-  const [stats, setStats] = useState<OrderStatistic | null>(null);
+  const [stats, setStats] = useState<RevenueStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<OrderDetail[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Mock data Lịch hẹn
+  // Mock data Lịch hẹn (Giữ nguyên hiển thị)
   const upcomingBookings = [
     { id: 1, pet: "Mimi (Mèo)", service: "Tắm & Cắt tỉa", time: "14:00", owner: "Chị Lan" },
     { id: 2, pet: "Lu (Chó)", service: "Khám tổng quát", time: "15:30", owner: "Anh Hùng" },
@@ -40,30 +48,48 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+
+        // 1. Tính toán ngày đầu tháng và cuối tháng hiện tại
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1; // getMonth trả về 0-11
+        
+        // Format YYYY-MM-DD
+        const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDayObj = new Date(year, month, 0); // Ngày cuối tháng
+        const lastDay = `${year}-${String(month).padStart(2, '0')}-${lastDayObj.getDate()}`;
+
+        console.log(`Fetching stats for: ${firstDay} to ${lastDay}`);
+
+        // 2. Gọi song song API Thống kê và API Đơn hàng
         const [statsRes, ordersRes] = await Promise.all([
-          api.get("/orders/stats"),
-          api.get("/orders?page=1&size=5")
+          api.get(`/orders/stats`, { 
+              params: { fromDate: firstDay, toDate: lastDay } 
+          }),
+          api.get("/orders?page=1&size=5") // Lấy 5 đơn mới nhất
         ]);
 
+        // 3. Cập nhật State
         if (statsRes.data && statsRes.data.status === 200) {
           setStats(statsRes.data.data);
         }
         if (ordersRes.data && ordersRes.data.status === 200) {
-          setRecentOrders(ordersRes.data.data.orders);
+          setRecentOrders(ordersRes.data.data.content || ordersRes.data.data.orders || []);
         }
+
       } catch (error: any) {
-        console.error("Lỗi tải Dashboard:", error);
+        console.error("Lỗi tải dữ liệu Dashboard:", error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  // --- CÁC HÀM XỬ LÝ SỰ KIỆN (ACTIONS) ---
-
-  const handleStatClick = (statusFilter: string) => {
-    navigate(`/admin/orders?status=${statusFilter}`);
+  // --- ACTIONS ---
+  const handleStatClick = (path: string) => {
+    navigate(path);
   };
 
   const handleOrderClick = (orderId: number) => {
@@ -74,12 +100,11 @@ const Dashboard: React.FC = () => {
     navigate("/admin/orders");
   };
 
-  // 🟢 ĐÃ SỬA: Chuyển hướng đến trang Lịch hẹn (/admin/calendar)
   const handleBookingAction = () => {
     navigate("/admin/calendar");
   };
 
-  // --- HELPER FORMAT ---
+  // --- FORMAT HELPER ---
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
   };
@@ -87,7 +112,7 @@ const Dashboard: React.FC = () => {
   const formatTime = (isoString: string) => {
     if (!isoString) return "";
     const date = new Date(isoString);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + " " + date.toLocaleDateString('vi-VN');
+    return date.toLocaleDateString('vi-VN') + " " + date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
   const getStatusInfo = (status: string) => {
@@ -101,38 +126,39 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // --- CONFIG CARDS (Dựa trên dữ liệu có thật từ RevenueStats) ---
   const statsCards = [
     {
-      label: "Doanh thu tổng",
-      value: stats ? formatCurrency(stats.revenue) : "0đ",
+      label: `Doanh thu tháng ${new Date().getMonth() + 1}`,
+      value: stats ? formatCurrency(stats.totalRevenue) : "0đ",
+      subLabel: "Đơn hàng + Dịch vụ",
       icon: "💰",
-      color: "#10b981",
-      filterStatus: "",
-      action: () => navigate("/admin/revenue")
+      color: "#10b981", // Green
+      path: "/admin/revenue"
     },
     {
-      label: "Đơn chờ duyệt",
-      value: stats ? stats.newOrders : 0,
-      icon: "🛒",
-      color: "#3b82f6",
-      filterStatus: "PENDING",
-      action: () => handleStatClick("PENDING")
+      label: "Đơn hàng thành công",
+      value: stats ? stats.successOrders : 0,
+      subLabel: `Trên tổng ${stats ? stats.totalOrders : 0} đơn`,
+      icon: "📦",
+      color: "#3b82f6", // Blue
+      path: "/admin/orders?status=COMPLETED"
     },
     {
-      label: "Đang giao hàng",
-      value: stats ? stats.shippingOrders : 0,
-      icon: "🚚",
-      color: "#f59e0b",
-      filterStatus: "SHIPPING",
-      action: () => handleStatClick("SHIPPING")
+      label: "Dịch vụ hoàn thành",
+      value: stats ? stats.completedAppointments : 0,
+      subLabel: `Trên tổng ${stats ? stats.totalAppointments : 0} lịch`,
+      icon: "✂️",
+      color: "#8b5cf6", // Purple
+      path: "/admin/calendar"
     },
     {
-      label: "Đơn đã hủy",
-      value: stats ? stats.cancelledOrders : 0,
-      icon: "❌",
-      color: "#ef4444",
-      filterStatus: "CANCELLED",
-      action: () => handleStatClick("CANCELLED")
+      label: "Đã hủy (Đơn + Lịch)",
+      value: stats ? (stats.cancelledOrders + stats.cancelledAppointments) : 0,
+      subLabel: "Cần chú ý",
+      icon: "⚠️",
+      color: "#ef4444", // Red
+      path: "/admin/orders?status=CANCELLED"
     },
   ];
 
@@ -148,15 +174,16 @@ const Dashboard: React.FC = () => {
           <div 
             className="stat-card" 
             key={index}
-            onClick={stat.action ? stat.action : undefined}
-            style={{ cursor: "pointer" }}
+            onClick={() => handleStatClick(stat.path)}
+            style={{ cursor: "pointer", borderLeft: `4px solid ${stat.color}` }}
           >
             <div className="stat-icon" style={{ backgroundColor: stat.color + "20", color: stat.color }}>
               {stat.icon}
             </div>
             <div className="stat-info">
               <p className="stat-label">{stat.label}</p>
-              <h3 className="stat-value">{stat.value}</h3>
+              <h3 className="stat-value" style={{color: stat.color}}>{stat.value}</h3>
+              <p className="stat-sub">{stat.subLabel}</p>
             </div>
           </div>
         ))}
@@ -208,7 +235,9 @@ const Dashboard: React.FC = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: "center", padding: "20px" }}>Chưa có đơn hàng nào</td>
+                  <td colSpan={4} style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                    Chưa có đơn hàng nào
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -219,14 +248,13 @@ const Dashboard: React.FC = () => {
         <div className="card dashboard-section">
           <div className="section-header">
             <h3>Lịch hẹn sắp tới</h3>
-            {/* Nút Xem lịch sẽ dẫn đến /admin/calendar */}
             <button className="view-all-btn" onClick={handleBookingAction}>Xem lịch</button>
           </div>
           <div className="booking-list">
             {upcomingBookings.map((booking) => (
               <div className="booking-item" key={booking.id}>
-                <div className="booking-time">
-                  {booking.time}
+                <div className="booking-time-box">
+                    <span style={{fontWeight: 'bold', color: '#374151'}}>{booking.time}</span>
                 </div>
                 <div className="booking-info">
                   <div className="booking-service">{booking.service}</div>
@@ -234,8 +262,7 @@ const Dashboard: React.FC = () => {
                     Bé <strong>{booking.pet}</strong> - Chủ: {booking.owner}
                   </div>
                 </div>
-                {/* Nút Chi tiết cũng dẫn đến trang lịch hẹn */}
-                <button className="action-btn-sm" onClick={handleBookingAction}>Chi tiết</button>
+                <button className="action-btn-sm" onClick={handleBookingAction}>➜</button>
               </div>
             ))}
           </div>

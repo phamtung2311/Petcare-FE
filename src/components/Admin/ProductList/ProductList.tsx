@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import api from "../../../api/axiosInstance";
 import "./ProductList.css";
 // Lưu ý: Sửa đường dẫn import này cho đúng với cấu trúc thư mục thực tế của bạn
-// Nếu file CategoryList.tsx nằm trong thư mục con "CategoryList":
 import CategoryList from "./CategoryList/CategoryList"; 
 
 // --- INTERFACES ---
@@ -49,6 +48,10 @@ const ProductList: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
 
+  // [NEW] State Sắp xếp
+  const [sortBy, setSortBy] = useState<string>("id"); // Mặc định sắp xếp theo ID
+  const [sortDir, setSortDir] = useState<string>("desc"); // Mặc định giảm dần
+
   // Modal & Form
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -60,25 +63,26 @@ const ProductList: React.FC = () => {
 
   // --- EFFECTS ---
 
-  // 1. Load danh mục (để dùng cho Dropdown lọc và Dropdown trong Modal)
+  // 1. Load danh mục
   useEffect(() => {
     fetchCategories(); 
   }, []);
 
-  // 2. Khi đổi Tab, Chế độ xem, hoặc Filter Category -> Reset về trang 1
+  // 2. Khi đổi Tab, Chế độ xem, Filter Category -> Reset về trang 1
   useEffect(() => {
     if (activeTab === 'products') {
         setPage(1);
-        fetchProducts(1);
+        // Khi đổi filter thì gọi lại API luôn (do page set lại 1 có thể không trigger effect dưới kịp thời)
+        fetchProducts(1); 
     }
   }, [viewDeleted, activeTab, filterCategoryId]);
 
-  // 3. Khi đổi trang (Page) -> Gọi API trang đó
+  // 3. Khi đổi trang (Page) HOẶC đổi Sắp xếp (Sort) -> Gọi API
   useEffect(() => {
     if (activeTab === 'products') {
         fetchProducts(page);
     }
-  }, [page]); 
+  }, [page, sortBy, sortDir]); // [NEW] Thêm sortBy, sortDir vào dependency
 
   // --- API CALLS ---
   const fetchProducts = async (pageNumber: number) => {
@@ -88,9 +92,9 @@ const ProductList: React.FC = () => {
         params: { 
             page: pageNumber, 
             size: 10, 
-            sort: "id:desc",
+            // [NEW] Sử dụng state sort động thay vì cứng
+            sort: `${sortBy}:${sortDir}`, 
             isDeleted: viewDeleted,
-            // Gửi param categoryId lên BE (nếu > 0)
             categoryId: filterCategoryId > 0 ? filterCategoryId : undefined 
         }
       });
@@ -114,7 +118,6 @@ const ProductList: React.FC = () => {
         params: { sort: "id:asc", page: 1, size: 100 }, 
       });
       if (res.data && res.data.status === 200 && res.data.data) {
-        // Kiểm tra key trả về là categories hay content tùy vào BE của bạn
         setCategories(res.data.data.categories || res.data.data.content || []); 
       }
     } catch (error) {
@@ -124,6 +127,26 @@ const ProductList: React.FC = () => {
   };
 
   // --- HANDLERS ---
+  
+  // [NEW] Hàm xử lý khi click vào tiêu đề cột
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+        // Nếu click lại cột cũ -> Đảo chiều
+        setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+        // Nếu click cột mới -> Set cột mới, mặc định giảm dần (desc)
+        setSortBy(field);
+        setSortDir('desc');
+    }
+    setPage(1); // Reset về trang 1 khi sort
+  };
+
+  // [NEW] Hàm render icon mũi tên
+  const renderSortIcon = (field: string) => {
+    if (sortBy !== field) return <span style={{ opacity: 0.3, fontSize: '12px', marginLeft: '5px' }}>⇅</span>;
+    return <span style={{ marginLeft: '5px' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  };
+
   const handleAddNew = () => {
     setIsEditMode(false);
     setFormData({ name: "", price: 0, stock: 0, description: "", categoryId: 0, thumbnail: "" });
@@ -134,7 +157,6 @@ const ProductList: React.FC = () => {
     setIsEditMode(true);
     setCurrentId(product.id);
     
-    // Logic map category name sang id (nếu BE trả về name)
     const cat = categories.find(c => c.name === product.categoryName);
     const catId = cat ? cat.id : 0;
     const imgUrl = (product.images && product.images.length > 0) ? product.images[0].imageUrl : "";
@@ -247,7 +269,6 @@ const ProductList: React.FC = () => {
                 <div className="page-header">
                     <h2 className="page-title">Sản phẩm</h2>
                     
-                    {/* 🟢 GOM NHÓM BUTTON VÀO ĐÂY ĐỂ THẲNG HÀNG */}
                     <div className="header-actions">
                         
                         {/* 1. Dropdown Lọc */}
@@ -290,13 +311,33 @@ const ProductList: React.FC = () => {
                     <table className="product-table">
                     <thead>
                         <tr>
-                        <th>ID</th>
-                        <th>Ảnh</th>
-                        <th>Tên sản phẩm</th>
-                        <th>Danh mục</th>
-                        <th>Giá bán</th>
-                        <th>Kho</th>
-                        <th>Hành động</th>
+                            {/* [NEW] Thêm click event cho ID */}
+                            <th onClick={() => handleSort('id')} style={{cursor: 'pointer', userSelect: 'none'}}>
+                                ID {renderSortIcon('id')}
+                            </th>
+                            
+                            <th>Ảnh</th>
+                            
+                            <th onClick={() => handleSort('name')} style={{cursor: 'pointer', userSelect: 'none'}}>
+                                Tên sản phẩm {renderSortIcon('name')}
+                            </th>
+                            
+                            <th>Danh mục</th>
+                            
+                            <th onClick={() => handleSort('price')} style={{cursor: 'pointer', userSelect: 'none'}}>
+                                Giá bán {renderSortIcon('price')}
+                            </th>
+                            
+                            {/* [NEW] Sửa phần Kho để click sort */}
+                            <th 
+                                onClick={() => handleSort('stock')} 
+                                style={{cursor: 'pointer', userSelect: 'none', backgroundColor: sortBy === 'stock' ? '#f0fdf4' : ''}}
+                                title="Click để sắp xếp tồn kho"
+                            >
+                                Kho {renderSortIcon('stock')}
+                            </th>
+                            
+                            <th>Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -317,7 +358,12 @@ const ProductList: React.FC = () => {
                                 <td className="product-name-cell"><strong>{p.name}</strong></td>
                                 <td>{p.categoryName || "---"}</td>
                                 <td className="text-price">{formatCurrency(p.price)}</td>
-                                <td><span className={`stock-badge ${p.stock > 0 ? 'in-stock' : 'out-stock'}`}>{p.stock}</span></td>
+                                {/* Hightlight cột stock nếu đang sort theo stock */}
+                                <td style={{ backgroundColor: sortBy === 'stock' ? '#f0fdf4' : '' }}>
+                                    <span className={`stock-badge ${p.stock > 0 ? 'in-stock' : 'out-stock'}`}>
+                                        {p.stock}
+                                    </span>
+                                </td>
                                 <td>
                                     <div className="action-buttons">
                                     {!viewDeleted ? (

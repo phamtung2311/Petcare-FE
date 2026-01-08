@@ -2,18 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../../../api/axiosInstance';
 import './Appointment.css';
 
-// ID Role Staff
-const STAFF_ROLE_ID = 2; 
-
-// 🟢 1. CẬP NHẬT INTERFACE THEO ĐÚNG DỮ LIỆU THỰC TẾ
-interface Staff {
-    id: number;
-    fistName?: string; // Backend đang trả về sai chính tả (thiếu chữ 'r')
-    firstName?: string; // Dự phòng trường hợp backend sửa lại đúng
-    lastName?: string;
-    userName?: string;
-}
-
+// Interface Appointment
 interface Appointment {
     id: number;
     customerId: number;
@@ -40,7 +29,6 @@ interface PaginationData {
 
 const Appointment: React.FC = () => {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [staffList, setStaffList] = useState<Staff[]>([]); 
     const [loading, setLoading] = useState<boolean>(false);
     
     const [pagination, setPagination] = useState<PaginationData>({
@@ -50,6 +38,8 @@ const Appointment: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState<string>('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+    
+    // State form sửa
     const [editForm, setEditForm] = useState({ staffId: '', status: '', note: '' });
 
     const getAuthConfig = () => {
@@ -57,20 +47,7 @@ const Appointment: React.FC = () => {
         return { headers: { Authorization: `Bearer ${token}` } };
     };
 
-    const fetchStaffList = async () => {
-        try {
-            const params = { roleId: STAFF_ROLE_ID, size: 100 };
-            const response = await api.get('/user/list', { params, ...getAuthConfig() });
-            const result = response.data;
-            if (result.status === 200) {
-                // Lấy danh sách từ các trường có thể có
-                const users = result.data.users || result.data.content || result.data.data || [];
-                setStaffList(users);
-            }
-        } catch (error) {
-            console.error("Lỗi lấy staff:", error);
-        }
-    };
+    // --- 1. ĐÃ XÓA fetchStaffList VÌ KHÔNG CÒN DÙNG ---
 
     const fetchAppointments = async (page: number = 1) => {
         setLoading(true);
@@ -93,14 +70,13 @@ const Appointment: React.FC = () => {
     };
 
     useEffect(() => { fetchAppointments(1); }, [filterStatus]);
-    useEffect(() => { fetchStaffList(); }, []);
 
     const handlePageChange = (newPage: number) => fetchAppointments(newPage);
 
     const handleEditClick = (appt: Appointment) => {
         setSelectedAppt(appt);
         setEditForm({
-            staffId: appt.staffId ? appt.staffId.toString() : '',
+            staffId: appt.staffId ? appt.staffId.toString() : '', // Vẫn giữ ID cũ để khi lưu không bị mất
             status: appt.status,
             note: appt.note || ''
         });
@@ -111,6 +87,7 @@ const Appointment: React.FC = () => {
         if (!selectedAppt) return;
         try {
             const bodyData = {
+                // Giữ nguyên logic gửi staffId cũ lên (nếu có)
                 staffId: editForm.staffId ? parseInt(editForm.staffId) : null,
                 status: editForm.status,
                 note: editForm.note
@@ -142,16 +119,6 @@ const Appointment: React.FC = () => {
             case 'CANCELLED': return 'Đã hủy';
             default: return status;
         }
-    };
-
-    // 🟢 HÀM HELPER ĐỂ GHÉP TÊN (Xử lý cả fistName và firstName)
-    const getStaffDisplayName = (staff: Staff) => {
-        // Ưu tiên: fistName (theo ảnh) -> firstName (nếu sửa) -> userName
-        const fname = staff.fistName || staff.firstName || ""; 
-        const lname = staff.lastName || "";
-        const fullName = `${fname} ${lname}`.trim();
-        
-        return fullName || staff.userName || `Nhân viên ${staff.id}`;
     };
 
     return (
@@ -204,6 +171,8 @@ const Appointment: React.FC = () => {
                     <div className="modal-content">
                         <h2 className="modal-title">Sửa lịch hẹn #{selectedAppt.id}</h2>
                         <div className="modal-body">
+                            
+                            {/* 🟢 FORM CHỈ CÒN TRẠNG THÁI VÀ GHI CHÚ */}
                             <div className="form-group">
                                 <label className="form-label">Trạng thái</label>
                                 <select className="form-select" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})}>
@@ -214,19 +183,7 @@ const Appointment: React.FC = () => {
                                 </select>
                             </div>
 
-                            {/* 🟢 KHU VỰC HIỂN THỊ TÊN ĐÃ SỬA */}
-                            <div className="form-group">
-                                <label className="form-label">Phân công Nhân viên</label>
-                                <select className="form-select" value={editForm.staffId} onChange={(e) => setEditForm({...editForm, staffId: e.target.value})}>
-                                    <option value="">-- Chưa phân công --</option>
-                                    {staffList.map((staff) => (
-                                        <option key={staff.id} value={staff.id}>
-                                            {getStaffDisplayName(staff)} (ID: {staff.id})
-                                        </option>
-                                    ))}
-                                </select>
-                                <p className="form-note">*Chọn nhân viên từ danh sách để thực hiện</p>
-                            </div>
+                            {/* Đã xóa phần Phân công nhân viên ở đây */}
 
                             <div className="form-group">
                                 <label className="form-label">Ghi chú</label>
