@@ -1,20 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../../api/axiosInstance";
 import "./Checkout.css";
 
-// --- 1. CẬP NHẬT INTERFACE: Thêm trường images ---
+// --- 1. INTERFACE DỮ LIỆU ---
 interface CheckoutItem {
   id?: number;
   productId: number;
-  quantity: number;
+  quantity: number | string; // Cho phép chuỗi rỗng để khách xóa số
   productName?: string;
   name?: string;
   price?: number;
   unitPrice?: number;
   image?: string;
   productImage?: string;
-  images?: { id: number; imageUrl: string }[]; // <--- Đã thêm dòng này để hứng dữ liệu ảnh từ trang Customer
+  images?: { id: number; imageUrl: string }[]; 
+  stock?: number; // Hứng dữ liệu tồn kho từ trang Giỏ hàng truyền sang
 }
 
 interface Address {
@@ -47,7 +48,7 @@ const Checkout: React.FC = () => {
 
   const [items, setItems] = useState<CheckoutItem[]>([]);
   const [merchandiseSubtotal, setMerchandiseSubtotal] = useState(0);
-  const [shippingFee] = useState(30000);
+  const [shippingFee] = useState(30000); // Phí ship mặc định
   const [discountAmount, setDiscountAmount] = useState(0);
   const [totalPayment, setTotalPayment] = useState(0);
 
@@ -65,7 +66,10 @@ const Checkout: React.FC = () => {
     recipientName: "", recipientPhone: "", city: "", ward: "", addressDetail: ""
   });
 
-  // --- LOGIC LOAD DỮ LIỆU ---
+  // Biến useRef chống spam gọi API khi gõ số lượng (Dùng number thay vì NodeJS.Timeout)
+  const typingTimeoutRef = useRef<number | null>(null);
+
+  // --- 2. LOGIC LOAD DỮ LIỆU ---
   useEffect(() => {
     if (isBuyNowMode && buyNowItems) {
       setItems(buyNowItems);
@@ -73,15 +77,19 @@ const Checkout: React.FC = () => {
       fetchMyCart();
     }
     fetchAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBuyNowMode]);
 
   useEffect(() => {
+    // Tính tổng tiền hàng
     const subtotal = items.reduce((sum, item) => {
       const price = item.price || item.unitPrice || 0;
-      return sum + price * item.quantity;
+      const qty = Number(item.quantity) || 1; // Đảm bảo luôn nhân với số hợp lệ
+      return sum + price * qty;
     }, 0);
     setMerchandiseSubtotal(subtotal);
 
+    // Tính toán mã giảm giá
     let discount = 0;
     if (appliedCoupon) {
       if (subtotal < appliedCoupon.minOrderValue) {
@@ -142,7 +150,7 @@ const Checkout: React.FC = () => {
     }
   };
 
-  // --- LOGIC COUPON ---
+  // --- 3. LOGIC COUPON ---
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
     try {
@@ -183,24 +191,78 @@ const Checkout: React.FC = () => {
     setCouponCode("");
   };
 
-  // --- LOGIC SỐ LƯỢNG ---
-  const handleQuantityChange = async (index: number, change: number) => {
+  // --- 4. LOGIC SỐ LƯỢNG (Cho phép gõ phím + Chặn Tồn Kho) ---
+  const triggerQuantityUpdateAPI = (item: CheckoutItem, newQty: number) => {
+    // Chỉ lưu tạm vào cart nếu đi từ giỏ hàng, nếu mua ngay (Buy Now) thì không cần
+    if (!isBuyNowMode && item.id) {
+      api.put(`/cart/upd/${item.id}`, null, { params: { quantity: newQty } })
+         .catch(e => console.error("Lỗi update quantity:", e));
+    }
+  };
+
+  const handleQuantityBtnClick = (index: number, change: number) => {
     const currentItem = items[index];
-    const newQuantity = currentItem.quantity + change;
+    const currentQty = Number(currentItem.quantity) || 1;
+    let newQuantity = currentQty + change;
+    
     if (newQuantity < 1) return;
+
+    // Rào chắn kiểm tra tồn kho
+    if (currentItem.stock !== undefined && newQuantity > currentItem.stock) {
+        alert(`Rất tiếc, sản phẩm này chỉ còn ${currentItem.stock} cái trong kho!`);
+        newQuantity = currentItem.stock; 
+    }
 
     const newItems = [...items];
     newItems[index].quantity = newQuantity;
     setItems(newItems);
 
-    if (!isBuyNowMode && currentItem.id) {
-      try {
-        await api.put(`/cart/upd/${currentItem.id}`, null, { params: { quantity: newQuantity } });
-      } catch (e) { }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = window.setTimeout(() => {
+        triggerQuantityUpdateAPI(currentItem, newQuantity);
+    }, 300);
+  };
+
+  const handleQuantityInputTyping = (index: number, value: string) => {
+    const inputValue = value.replace(/[^0-9]/g, ''); 
+    const newItems = [...items];
+    const currentItem = items[index];
+
+    if (inputValue === '') {
+        newItems[index].quantity = '';
+        setItems(newItems);
+        return;
+    }
+
+    let newQty = parseInt(inputValue, 10);
+    if (newQty < 1) return;
+
+    // Rào chắn kiểm tra tồn kho khi gõ trực tiếp
+    if (currentItem.stock !== undefined && newQty > currentItem.stock) {
+        alert(`Rất tiếc, sản phẩm này chỉ còn ${currentItem.stock} cái trong kho!`);
+        newQty = currentItem.stock; 
+    }
+
+    newItems[index].quantity = newQty;
+    setItems(newItems);
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = window.setTimeout(() => {
+        triggerQuantityUpdateAPI(currentItem, newQty);
+    }, 600);
+  };
+
+  const handleInputBlur = (index: number) => {
+    const currentItem = items[index];
+    if (currentItem.quantity === '' || Number(currentItem.quantity) < 1) {
+        const newItems = [...items];
+        newItems[index].quantity = 1;
+        setItems(newItems);
+        triggerQuantityUpdateAPI(currentItem, 1);
     }
   };
 
-  // --- LOGIC ĐỊA CHỈ ---
+  // --- 5. LOGIC ĐỊA CHỈ ---
   const handleAddAddress = async () => {
     const { recipientName, recipientPhone, city, ward, addressDetail } = newAddress;
     if (!recipientName || !recipientPhone || !city || !ward || !addressDetail) {
@@ -218,14 +280,14 @@ const Checkout: React.FC = () => {
     }
   };
 
-  // --- XỬ LÝ ĐẶT HÀNG ---
+  // --- 6. XỬ LÝ ĐẶT HÀNG ---
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       alert("Vui lòng chọn địa chỉ nhận hàng!");
       return;
     }
 
-    // Kiểm tra ID sản phẩm
+    // Kiểm tra ID sản phẩm tránh lỗi Backend
     for (const item of items) {
       if (!item.productId && !item.id) {
         alert(`Lỗi: Sản phẩm "${item.productName}" bị thiếu ID. Vui lòng thử lại.`);
@@ -235,7 +297,7 @@ const Checkout: React.FC = () => {
 
     setLoading(true);
     try {
-      // 1. Tạo đơn hàng
+      // Dữ liệu tạo đơn
       const payload = {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod,
@@ -244,15 +306,14 @@ const Checkout: React.FC = () => {
         items: isBuyNowMode
           ? items.map(item => ({
             productId: item.productId || item.id,
-            quantity: item.quantity
+            quantity: Number(item.quantity) || 1
           }))
-          : null
+          : null // Mua từ giỏ hàng thì gửi null để server tự lấy
       };
 
       const res = await api.post("/orders", payload);
       const newOrder = res.data.data;
 
-      // 2. Nếu chọn VNPay -> Gọi tiếp API lấy link thanh toán
       if (paymentMethod === "E_WALLET") {
         try {
           const paymentRes = await api.post("/payments/create", {
@@ -264,12 +325,11 @@ const Checkout: React.FC = () => {
 
           const paymentUrl = paymentRes.data.data.paymentUrl;
           if (paymentUrl) {
-            // Chuyển hướng sang trang VNPay
             window.location.href = paymentUrl;
             return;
           } else {
              alert("Tạo đơn thành công nhưng không lấy được link thanh toán. Vui lòng kiểm tra lại đơn hàng.");
-             navigate(`/account/orders/${newOrder.id}`);
+             navigate(`/profile`); 
           }
         } catch (payError) {
           console.error("Lỗi VNPay:", payError);
@@ -277,7 +337,6 @@ const Checkout: React.FC = () => {
           navigate("/profile"); 
         }
       } else {
-        // 3. Nếu là COD -> Chuyển về TRANG CHỦ
         alert(`🎉 Đặt hàng thành công! Mã đơn: ${newOrder.id}`);
         navigate("/"); 
       }
@@ -290,11 +349,16 @@ const Checkout: React.FC = () => {
     }
   };
 
+  // --- GIAO DIỆN ---
   return (
     <div className="checkout-container">
       <h2 className="checkout-title">Thanh Toán</h2>
       <div className="checkout-layout">
+        
+        {/* NỬA TRÁI */}
         <div className="checkout-left">
+          
+          {/* PHẦN ĐỊA CHỈ */}
           <div className="checkout-section">
             <h3><i className="fas fa-map-marker-alt"></i> Địa chỉ nhận hàng</h3>
             {addresses.length === 0 ? (
@@ -315,40 +379,63 @@ const Checkout: React.FC = () => {
             )}
             <button className="btn-add-address" onClick={() => setShowAddressModal(true)}>+ Thêm địa chỉ mới</button>
           </div>
+
+          {/* PHẦN SẢN PHẨM */}
           <div className="checkout-section">
             <h3><i className="fas fa-box"></i> Sản phẩm ({items.length})</h3>
+            
             <div className="checkout-items">
               {items.map((item, idx) => {
-                // --- 2. LOGIC LẤY ẢNH ĐƯỢC CẬP NHẬT ---
                 const imageUrl = item.image 
                   || item.productImage 
                   || (item.images && item.images.length > 0 ? item.images[0].imageUrl : null)
                   || "https://placehold.co/60";
 
                 return (
-                  <div key={idx} className="checkout-item">
-                     {/* Sử dụng biến imageUrl vừa tạo */}
-                    <img src={imageUrl} alt="img" style={{objectFit: 'cover'}} />
-                    <div className="item-details">
-                      <h4>{item.productName || item.name || "Sản phẩm"}</h4>
-                      <span className="item-price">{(item.price || item.unitPrice || 0).toLocaleString()}đ</span>
+                  <div key={idx} className="checkout-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
+                    <img src={imageUrl} alt="img" style={{objectFit: 'cover', width: '60px', height: '60px', marginRight: '15px', borderRadius: '4px'}} />
+                    <div className="item-details" style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 5px 0' }}>{item.productName || item.name || "Sản phẩm"}</h4>
+                      <span className="item-price" style={{ color: '#d97706', fontWeight: 'bold' }}>
+                        {(item.price || item.unitPrice || 0).toLocaleString()}đ
+                      </span>
                     </div>
-                    <div className="quantity-control">
-                      <button onClick={() => handleQuantityChange(idx, -1)}>-</button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => handleQuantityChange(idx, 1)}>+</button>
+                    
+                    {/* BỘ ĐIỀU KHIỂN SỐ LƯỢNG */}
+                    <div className="quantity-control" style={{ display: 'flex', border: '1px solid #ddd', borderRadius: '4px', overflow: 'hidden' }}>
+                      <button 
+                        style={{ padding: '5px 10px', border: 'none', background: '#f5f5f5', cursor: 'pointer' }} 
+                        onClick={() => handleQuantityBtnClick(idx, -1)}
+                      >-</button>
+                      
+                      <input 
+                        type="text"
+                        style={{ width: '40px', textAlign: 'center', border: 'none', borderLeft: '1px solid #ddd', borderRight: '1px solid #ddd', outline: 'none' }}
+                        value={item.quantity === '' ? '' : item.quantity}
+                        onChange={(e) => handleQuantityInputTyping(idx, e.target.value)}
+                        onBlur={() => handleInputBlur(idx)}
+                      />
+                      
+                      <button 
+                        style={{ padding: '5px 10px', border: 'none', background: '#f5f5f5', cursor: 'pointer' }} 
+                        onClick={() => handleQuantityBtnClick(idx, 1)}
+                      >+</button>
                     </div>
+                    
                   </div>
                 );
               })}
             </div>
           </div>
         </div>
+
+        {/* NỬA PHẢI: TỔNG KẾT & ĐẶT HÀNG */}
         <div className="checkout-right">
           <div className="order-summary">
             <h3>Tổng kết đơn hàng</h3>
             <div className="summary-row"><span>Tạm tính:</span><span>{merchandiseSubtotal.toLocaleString()}đ</span></div>
             <div className="summary-row"><span>Phí vận chuyển:</span><span>{shippingFee.toLocaleString()}đ</span></div>
+            
             <div className="coupon-section">
               {appliedCoupon ? (
                 <div className="applied-coupon">
@@ -362,17 +449,25 @@ const Checkout: React.FC = () => {
                 </div>
               )}
             </div>
+            
             <div className="summary-total"><span>Tổng thanh toán:</span><span className="total-price">{totalPayment.toLocaleString()}đ</span></div>
+            
             <div className="payment-methods">
               <p className="section-label">Phương thức thanh toán:</p>
               <label><input type="radio" name="payment" value="COD" checked={paymentMethod === "COD"} onChange={(e) => setPaymentMethod(e.target.value)} /> Thanh toán khi nhận hàng (COD)</label>
               <label><input type="radio" name="payment" value="E_WALLET" checked={paymentMethod === "E_WALLET"} onChange={(e) => setPaymentMethod(e.target.value)} /> Ví điện tử (VNPay/Momo)</label>
             </div>
+            
             <div className="order-note"><textarea placeholder="Ghi chú cho người bán..." value={note} onChange={(e) => setNote(e.target.value)} /></div>
-            <button className="btn-place-order" onClick={handlePlaceOrder} disabled={loading}>{loading ? "Đang xử lý..." : "ĐẶT HÀNG"}</button>
+            
+            <button className="btn-place-order" onClick={handlePlaceOrder} disabled={loading}>
+              {loading ? "Đang xử lý..." : "ĐẶT HÀNG"}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* MODAL THÊM ĐỊA CHỈ */}
       {showAddressModal && (
         <div className="modal-overlay">
           <div className="modal-content address-modal">

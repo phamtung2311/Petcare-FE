@@ -49,7 +49,7 @@ const ServiceandSpa: React.FC = () => {
         params: { page: currentPage, size: pageSize, keyword: keyword, sort: "id:desc", active: viewMode === 'active' },
       });
       const apiData = response.data;
-      if (apiData.status === 200 && apiData.data) {
+      if (apiData.status === "OK" && apiData.data) {
         setServices(apiData.data.services || []);
         setTotalPages(apiData.data.totalPages);
       } else { setServices([]); setTotalPages(0); }

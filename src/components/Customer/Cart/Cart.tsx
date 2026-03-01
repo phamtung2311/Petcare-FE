@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../../api/axiosInstance";
 import "./Cart.css";
@@ -7,12 +7,12 @@ interface CartItem {
   id: number;
   productId: number;
   productName: string;
-  name?: string; // Fallback
+  name?: string; 
   productImage?: string;
-  image?: string; // Fallback
-  quantity: number;
+  image?: string; 
+  quantity: number | string; // Cho phép chuỗi rỗng để khách xóa số
   unitPrice: number;
-  price?: number; // Fallback
+  price?: number; 
   totalPrice: number;
 }
 
@@ -22,12 +22,12 @@ const Cart: React.FC = () => {
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
   const navigate = useNavigate();
 
+  // Biến useRef dùng để hẹn giờ gọi API (chống spam click/gõ)
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // --- 1. Load Giỏ hàng ---
   const fetchCart = async () => {
     try {
       const res = await api.get("/cart");
-      console.log("Cart Data:", res.data); // 🟢 Debug log xem cấu trúc trả về
-
       if (res.data.data && Array.isArray(res.data.data.items)) {
         setCartItems(res.data.data.items);
       } else {
@@ -55,56 +55,108 @@ const Cart: React.FC = () => {
 
   const handleSelectItem = (id: number) => {
     if (selectedItemIds.includes(id)) {
-      setSelectedItemIds(selectedItemIds.filter(itemId => itemId !== id));
+      setSelectedItemIds(prev => prev.filter(itemId => itemId !== id));
     } else {
-      setSelectedItemIds([...selectedItemIds, id]);
+      setSelectedItemIds(prev => [...prev, id]);
     }
   };
 
-  // --- 3. Xử lý Số lượng ---
-  const handleQuantityChange = async (item: CartItem, change: number) => {
-    const newQty = (item.quantity || 0) + change;
-    if (newQty < 1) return;
-
-    // Optimistic update
-    const updatedItems = cartItems.map(i => 
-      i.id === item.id ? { ...i, quantity: newQty } : i
-    );
-    setCartItems(updatedItems);
-
+  // --- 3. GỌI API CẬP NHẬT ---
+  const callUpdateQuantityAPI = async (itemId: number, newQty: number) => {
     try {
-      await api.put(`/cart/upd/${item.id}`, null, { params: { quantity: newQty } });
-      // 🟢 Dispatch event để Header cập nhật
+      // Gọi API cập nhật
+      const res = await api.put(`/cart/upd/${itemId}`, null, { params: { quantity: newQty } });
+      
+      // Lấy luôn giỏ hàng mới nhất từ Backend trả về đắp vào giao diện
+      if (res.data && res.data.data && Array.isArray(res.data.data.items)) {
+          setCartItems(res.data.data.items);
+      } else {
+          fetchCart(); // Backup nếu backend không trả về mảng items
+      }
+
       window.dispatchEvent(new Event("cartChange"));
     } catch (error) {
       console.error("Lỗi cập nhật số lượng:", error);
-      fetchCart(); // Revert
+      fetchCart(); // Trả lại giao diện cũ nếu API lỗi
     }
   };
 
-  // --- 4. Xử lý Xóa ---
+  // --- 4. NÚT CLICK (+/-) ---
+  const handleQuantityBtnClick = (item: CartItem, change: number) => {
+    // Ép kiểu đề phòng quantity đang là chuỗi rỗng
+    const currentQty = Number(item.quantity) || 1;
+    const newQty = currentQty + change;
+    
+    if (newQty < 1) return;
+
+    // Dùng (prev) để tránh lỗi Stale State
+    setCartItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i));
+    
+    // Hủy hẹn giờ gõ phím cũ
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    // Gọi API chống spam 300ms
+    typingTimeoutRef.current = setTimeout(() => {
+        callUpdateQuantityAPI(item.id, newQty);
+    }, 300);
+  };
+
+  // --- 5. GÕ TRỰC TIẾP VÀO Ô INPUT ---
+  const handleQuantityInputTyping = (item: CartItem, value: string) => {
+    // Chỉ lấy số
+    const inputValue = value.replace(/[^0-9]/g, ''); 
+
+    if (inputValue === '') {
+        // Cho phép xóa trắng ô input tạm thời
+        setCartItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: '' } : i));
+        return;
+    }
+
+    const newQty = parseInt(inputValue, 10);
+    if (newQty < 1) return;
+
+    // Cập nhật giao diện mượt mà
+    setCartItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i));
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    // Chờ 600ms không gõ nữa thì mới gọi API
+    typingTimeoutRef.current = setTimeout(() => {
+        callUpdateQuantityAPI(item.id, newQty);
+    }, 600);
+  };
+
+  // --- Xử lý khi người dùng click ra khỏi ô input (OnBlur) ---
+  // Đề phòng khách hàng xóa trắng ô số lượng rồi bỏ đi chỗ khác
+  const handleInputBlur = (item: CartItem) => {
+    if (item.quantity === '' || Number(item.quantity) < 1) {
+        setCartItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: 1 } : i));
+        callUpdateQuantityAPI(item.id, 1);
+    }
+  };
+
+  // --- 6. Xử lý Xóa ---
   const handleDeleteItem = async (id: number) => {
     if (!window.confirm("Bạn muốn xóa sản phẩm này khỏi giỏ?")) return;
     try {
       await api.delete(`/cart/del/${id}`);
       setSelectedItemIds(prev => prev.filter(itemId => itemId !== id));
       fetchCart();
-      // 🟢 Dispatch event để Header cập nhật
       window.dispatchEvent(new Event("cartChange"));
     } catch (error) {
       console.error("Lỗi xóa sản phẩm:", error);
     }
   };
 
-  // --- 5. Tính toán Tổng tiền ---
-  // Sử dụng (item.unitPrice || item.price || 0) để tránh lỗi crash nếu field null
+  // --- 7. Tính toán Tổng tiền ---
   const selectedItems = cartItems.filter(item => selectedItemIds.includes(item.id));
   const totalAmount = selectedItems.reduce((sum, item) => {
     const price = item.unitPrice || item.price || 0;
-    return sum + (price * (item.quantity || 1));
+    const qty = Number(item.quantity) || 1; // Luôn đảm bảo quantity là số hợp lệ
+    return sum + (price * qty);
   }, 0);
 
-  // --- 6. Chuyển sang Checkout ---
+  // --- 8. Chuyển sang Checkout ---
   const handleCheckout = () => {
     if (selectedItems.length === 0) {
       alert("Vui lòng chọn ít nhất một sản phẩm để thanh toán!");
@@ -113,7 +165,7 @@ const Cart: React.FC = () => {
 
     const checkoutData = selectedItems.map(item => ({
         productId: item.productId,
-        quantity: item.quantity,
+        quantity: Number(item.quantity) || 1,
         productName: item.productName || item.name || "Sản phẩm",
         price: item.unitPrice || item.price || 0,
         image: item.productImage || item.image
@@ -160,9 +212,9 @@ const Cart: React.FC = () => {
             </div>
 
             {cartItems.map(item => {
-                // Tính toán an toàn từng dòng để tránh crash
                 const displayPrice = item.unitPrice || item.price || 0;
-                const displayTotal = displayPrice * (item.quantity || 1);
+                const safeQty = Number(item.quantity) || 1;
+                const displayTotal = displayPrice * safeQty;
                 const displayName = item.productName || item.name || "Sản phẩm";
                 const displayImage = item.productImage || item.image || "https://placehold.co/80";
 
@@ -182,13 +234,23 @@ const Cart: React.FC = () => {
                             </div>
                         </div>
                         <div className="col-price">{displayPrice.toLocaleString()}đ</div>
+                        
                         <div className="col-qty">
                             <div className="qty-control">
-                                <button className="qty-btn" onClick={() => handleQuantityChange(item, -1)}>-</button>
-                                <input className="qty-input" value={item.quantity || 1} readOnly />
-                                <button className="qty-btn" onClick={() => handleQuantityChange(item, 1)}>+</button>
+                                <button className="qty-btn" onClick={() => handleQuantityBtnClick(item, -1)}>-</button>
+                                
+                                <input 
+                                    className="qty-input" 
+                                    type="text"
+                                    value={item.quantity === '' ? '' : item.quantity} 
+                                    onChange={(e) => handleQuantityInputTyping(item, e.target.value)}
+                                    onBlur={() => handleInputBlur(item)} // Đảm bảo tự điền lại số 1 nếu khách xóa rỗng rồi bỏ đi
+                                />
+                                
+                                <button className="qty-btn" onClick={() => handleQuantityBtnClick(item, 1)}>+</button>
                             </div>
                         </div>
+
                         <div className="col-total">{displayTotal.toLocaleString()}đ</div>
                         <div className="col-action">
                             <button className="btn-delete-item" onClick={() => handleDeleteItem(item.id)}>

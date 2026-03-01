@@ -50,7 +50,7 @@ const CategoryList: React.FC = () => {
         },
       });
 
-      if (res.data && res.data.status === 200 && res.data.data) {
+      if (res.data && res.data.status === "OK" && res.data.data) {
         // Lưu ý: Kiểm tra lại cấu trúc trả về của CategoryPageResponse trong Java
         // Ở đây mình giả định key trả về là 'categories' hoặc 'content'
         // Nếu CategoryPageResponse trả về field tên là 'content' thì sửa dòng dưới thành res.data.data.content

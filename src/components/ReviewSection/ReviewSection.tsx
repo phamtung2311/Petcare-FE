@@ -56,7 +56,8 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, onStatsUpdate 
       });
       
       if (res.data && res.data.data) {
-        const fetchedReviews: ReviewResponse[] = res.data.data;
+        const responseData = res.data.data;
+        const fetchedReviews: ReviewResponse[] = responseData.items || responseData.content || [];
         setReviews(fetchedReviews);
         
         // Logic tính toán số sao trung bình để gửi ngược lên cha
@@ -78,6 +79,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, onStatsUpdate 
       }
     } catch (error) {
       console.error("Lỗi tải đánh giá:", error);
+      setReviews([]);
     }
   };
 

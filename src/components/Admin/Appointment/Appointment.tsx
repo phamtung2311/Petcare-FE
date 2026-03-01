@@ -93,7 +93,7 @@ const Appointment: React.FC = () => {
                 note: editForm.note
             };
             const response = await api.put(`/appointments/upd/${selectedAppt.id}`, bodyData, getAuthConfig());
-            if (response.data.status === 200) {
+            if (response.data.status === "OK") {
                 alert("Cập nhật thành công!");
                 setIsModalOpen(false);
                 fetchAppointments(pagination.pageNumber);

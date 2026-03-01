@@ -98,8 +98,8 @@ const ProductList: React.FC = () => {
             categoryId: filterCategoryId > 0 ? filterCategoryId : undefined 
         }
       });
-      if (res.data && res.data.status === 200 && res.data.data) {
-        setProducts(res.data.data.products || []);
+      if (res.data && res.data.data) {
+        setProducts(res.data.data.products || res.data.data.content || res.data.data.items || []);
         setTotalPages(res.data.data.totalPages || 1);
       } else {
         setProducts([]);
