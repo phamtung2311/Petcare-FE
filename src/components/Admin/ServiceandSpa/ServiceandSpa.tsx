@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import api from "../../../api/axiosInstance";
 import "./ServiceandSpa.css";
 
-// ... (Giữ nguyên các Interface: Service, PageResponse, ViewMode) ...
 interface Service {
   id: number;
   name: string;
@@ -23,8 +22,17 @@ interface PageResponse {
 
 type ViewMode = 'active' | 'paused';
 
+// 🟢 FIX 1: Tạo FormData riêng để price và durationMin có thể nhận chuỗi rỗng "" (Xóa số 0 mặc định)
+interface ServiceFormData {
+  name: string;
+  description: string;
+  price: number | string;
+  durationMin: number | string;
+  imageUrl: string;
+  active: boolean;
+}
+
 const ServiceandSpa: React.FC = () => {
-  // ... (Giữ nguyên State: services, loading, keyword, pagination...) ...
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [keyword, setKeyword] = useState<string>("");
@@ -35,11 +43,13 @@ const ServiceandSpa: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   
-  const [formData, setFormData] = useState<Omit<Service, "id">>({
-    name: "", description: "", price: 0, durationMin: 30, imageUrl: "", active: true,
+  // 🟢 FIX 2: Thêm state xử lý trạng thái đang upload
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  
+  const [formData, setFormData] = useState<ServiceFormData>({
+    name: "", description: "", price: "", durationMin: "", imageUrl: "", active: true,
   });
 
-  // ... (Giữ nguyên useEffect và các hàm API: fetchServices, handleDelete, handleRestore, handleSave...) ...
   useEffect(() => { fetchServices(); }, [currentPage, keyword, viewMode]);
 
   const fetchServices = async () => {
@@ -56,32 +66,83 @@ const ServiceandSpa: React.FC = () => {
     } catch (error) { console.error(error); setServices([]); } finally { setLoading(false); }
   };
 
-  const handleDelete = async (id: number) => { /* ... Giữ nguyên logic ... */ 
+  const handleDelete = async (id: number) => { 
       if (!window.confirm("Bạn chắc chắn muốn tạm dừng?")) return;
       try { await api.delete(`/services/del/${id}`); alert("Đã tạm dừng!"); fetchServices(); } catch(e) { alert("Lỗi"); }
   };
-  const handleRestore = async (service: Service) => { /* ... Giữ nguyên logic ... */ 
+
+  const handleRestore = async (service: Service) => { 
       if (!window.confirm("Khôi phục?")) return;
       try { await api.put(`/services/upd/${service.id}`, {...service, active: true}); alert("Đã khôi phục!"); fetchServices(); } catch(e) { alert("Lỗi"); }
   };
-  const handleSave = async (e: React.FormEvent) => { /* ... Giữ nguyên logic ... */ 
+
+  // 🟢 FIX 3: Hàm xử lý Upload File ảnh lên Backend
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+
+    setIsUploading(true);
+    try {
+        const res = await api.post("/files/upload", uploadData, {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        });
+        
+        // Backend trả về: { status: 200, message: "...", url: "..." }
+        if (res.data && res.data.url) {
+            setFormData({ ...formData, imageUrl: res.data.url });
+        }
+    } catch (error: any) {
+        console.error("Upload error:", error);
+        alert("Lỗi upload ảnh: " + (error.response?.data || error.message));
+    } finally {
+        setIsUploading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => { 
      e.preventDefault();
      try {
-         if (editingService) await api.put(`/services/upd/${editingService.id}`, formData);
-         else await api.post("/services/add", { ...formData, active: true });
+         // 🟢 FIX 4: Ép kiểu price và durationMin về Number trước khi gửi xuống DB
+         const payload = {
+             ...formData,
+             price: Number(formData.price),
+             durationMin: Number(formData.durationMin),
+             active: true
+         };
+
+         if (editingService) await api.put(`/services/upd/${editingService.id}`, payload);
+         else await api.post("/services/add", payload);
          alert("Thành công!"); closeModal(); fetchServices();
      } catch(e) { alert("Lỗi"); }
   };
 
-  // ... (Giữ nguyên các hàm bổ trợ: handleSwitchMode, Modal handlers...) ...
   const handleSwitchMode = (mode: ViewMode) => { if (mode !== viewMode) { setViewMode(mode); setCurrentPage(1); setKeyword(""); } };
-  const openModalAdd = () => { setEditingService(null); setFormData({ name: "", description: "", price: 0, durationMin: 30, imageUrl: "", active: true }); setIsModalOpen(true); };
-  const openModalEdit = (service: Service) => { setEditingService(service); setFormData({ ...service }); setIsModalOpen(true); };
+  
+  const openModalAdd = () => { 
+      setEditingService(null); 
+      setFormData({ name: "", description: "", price: "", durationMin: "", imageUrl: "", active: true }); 
+      setIsModalOpen(true); 
+  };
+  
+  const openModalEdit = (service: Service) => { 
+      setEditingService(service); 
+      setFormData({ ...service }); 
+      setIsModalOpen(true); 
+  };
+  
   const closeModal = () => { setIsModalOpen(false); setEditingService(null); };
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: name === "price" || name === "durationMin" ? Number(value) : value })); };
+  
+  // 🟢 FIX 5: Sửa lại hàm handleInputChange để không ép kiểu Number sớm (giúp xóa được chữ số)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { 
+      const { name, value } = e.target; 
+      setFormData((prev) => ({ ...prev, [name]: value })); 
+  };
 
-
-  // --- RENDER (ĐÃ SỬA GIAO DIỆN) ---
   return (
     <div className="service-spa-container">
       {/* 1. Header: Tiêu đề bên trái, Nút thêm bên phải */}
@@ -91,7 +152,6 @@ const ServiceandSpa: React.FC = () => {
             <p className="service-subtitle">Quản lý danh sách các gói dịch vụ chăm sóc thú cưng</p>
         </div>
         
-        {/* Nút thêm mới chỉ hiện khi ở tab Active */}
         {viewMode === 'active' && (
             <button onClick={openModalAdd} className="btn-primary icon-btn">
                 <span className="plus-icon">+</span> Thêm Dịch vụ
@@ -99,7 +159,7 @@ const ServiceandSpa: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Tabs Group: Tách biệt hẳn với header */}
+      {/* 2. Tabs Group */}
       <div className="tabs-wrapper">
           <div className="tabs-group">
               <button 
@@ -114,7 +174,6 @@ const ServiceandSpa: React.FC = () => {
               </button>
           </div>
           
-          {/* Thanh tìm kiếm nằm cùng hàng với Tabs hoặc ngay dưới */}
           <div className="search-box">
             <input
               type="text"
@@ -127,7 +186,7 @@ const ServiceandSpa: React.FC = () => {
           </div>
       </div>
 
-      {/* 3. Table Wrapper (Giữ nguyên) */}
+      {/* 3. Table Wrapper */}
       <div className="table-wrapper">
         {loading ? (
           <div className="loading-state">Đang tải dữ liệu...</div>
@@ -160,7 +219,11 @@ const ServiceandSpa: React.FC = () => {
                       </div>
                     </td>
                     <td className="price-cell">{service.price.toLocaleString("vi-VN")} đ</td>
-                    <td><span className="badge-time">{service.durationMin}p</span></td>
+                    <td>
+                      <span className="badge-time">
+                        {service.durationMin ? `${service.durationMin}p` : "---"}
+                      </span>
+                    </td>
                     <td>
                       {service.active 
                         ? <span className="status-badge status-active">● Hoạt động</span> 
@@ -182,7 +245,7 @@ const ServiceandSpa: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination (Giữ nguyên logic) */}
+      {/* Pagination */}
       {totalPages > 0 && (
         <div className="pagination">
             <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="btn-page">Prev</button>
@@ -191,24 +254,66 @@ const ServiceandSpa: React.FC = () => {
         </div>
       )}
 
-      {/* Modal (Giữ nguyên form inputs) */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h2 className="modal-title">{editingService ? "Cập nhật Dịch vụ" : "Thêm mới Dịch vụ"}</h2>
             <form onSubmit={handleSave}>
-               {/* ... (Copy lại phần Form Inputs từ code cũ vào đây, không cần sửa style vì CSS mới sẽ lo) ... */}
-               <div className="form-group"><label>Tên dịch vụ</label><input required className="form-input" name="name" value={formData.name} onChange={handleInputChange}/></div>
-               <div className="form-row">
-                   <div className="form-col"><label>Giá</label><input type="number" className="form-input" name="price" value={formData.price} onChange={handleInputChange}/></div>
-                   <div className="form-col"><label>Phút</label><input type="number" className="form-input" name="durationMin" value={formData.durationMin} onChange={handleInputChange}/></div>
+               <div className="form-group">
+                   <label>Tên dịch vụ</label>
+                   <input required className="form-input" name="name" value={formData.name} onChange={handleInputChange}/>
                </div>
-               <div className="form-group"><label>Link Ảnh</label><input className="form-input" name="imageUrl" value={formData.imageUrl} onChange={handleInputChange}/></div>
-               <div className="form-group"><label>Mô tả</label><textarea className="form-textarea" name="description" value={formData.description} onChange={handleInputChange}></textarea></div>
+               
+               {/* 🟢 Giao diện giá và phút đã được sửa để không dính số 0 */}
+               <div className="form-row">
+                   <div className="form-col">
+                       <label>Giá (VNĐ)</label>
+                       <input type="number" min="0" required className="form-input" name="price" value={formData.price} onChange={handleInputChange}/>
+                   </div>
+                   <div className="form-col">
+                       <label>Phút (Thời gian thực hiện)</label>
+                       <input type="number" min="0" required className="form-input" name="durationMin" value={formData.durationMin} onChange={handleInputChange}/>
+                   </div>
+               </div>
+
+               {/* 🟢 Giao diện Ảnh (Upload máy + Paste Link) */}
+               <div className="form-group">
+                   <label>Ảnh dịch vụ (Tải lên từ máy hoặc dán link web)</label>
+                   <input 
+                       type="file" 
+                       accept="image/*" 
+                       onChange={handleFileUpload} 
+                       style={{ marginBottom: '10px' }}
+                   />
+                   
+                   {isUploading && <p style={{ color: '#4f46e5', fontSize: '13px', margin: '5px 0' }}>Đang tải ảnh lên hệ thống...</p>}
+                   
+                   <input 
+                       className="form-input" 
+                       name="imageUrl" 
+                       placeholder="Hoặc dán trực tiếp link ảnh copy trên mạng vào đây..."
+                       value={formData.imageUrl} 
+                       onChange={handleInputChange}
+                   />
+                   
+                   {formData.imageUrl && (
+                       <img src={formData.imageUrl} alt="Preview" className="img-preview" 
+                       style={{ marginTop: '10px', maxWidth: '100px', borderRadius: '8px', objectFit: 'cover' }}
+                       onError={(e) => (e.target as HTMLImageElement).src = "https://placehold.co/100x100?text=Lỗi+Ảnh"}/>
+                   )}
+               </div>
+
+               <div className="form-group">
+                   <label>Mô tả chi tiết</label>
+                   <textarea className="form-textarea" rows={4} name="description" value={formData.description} onChange={handleInputChange}></textarea>
+               </div>
                
                <div className="modal-actions">
                 <button type="button" onClick={closeModal} className="btn-secondary">Hủy</button>
-                <button type="submit" className="btn-primary">Lưu lại</button>
+                <button type="submit" className="btn-primary" disabled={isUploading}>
+                    {isUploading ? "Đang xử lý..." : "Lưu lại"}
+                </button>
               </div>
             </form>
           </div>

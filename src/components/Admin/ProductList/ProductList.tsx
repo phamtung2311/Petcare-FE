@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../api/axiosInstance";
 import "./ProductList.css";
-// Lưu ý: Sửa đường dẫn import này cho đúng với cấu trúc thư mục thực tế của bạn
 import CategoryList from "./CategoryList/CategoryList"; 
 
 // --- INTERFACES ---
@@ -20,12 +19,13 @@ interface Category {
   name: string;
 }
 
+// 🟢 FIX 2: Cho phép price và stock nhận string rỗng để sửa lỗi xóa số 0 bị kẹt
 interface ProductFormData {
   name: string;
-  price: number;
-  stock: number;
+  price: number | string; 
+  stock: number | string; 
   description: string;
-  categoryId: number;
+  categoryId: number | string;
   thumbnail: string;
 }
 
@@ -37,52 +37,42 @@ const ProductList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  
-  // State chế độ xem (false = Đang bán, true = Thùng rác)
   const [viewDeleted, setViewDeleted] = useState<boolean>(false); 
-
-  // State Lọc theo Category ID (0 = Tất cả)
   const [filterCategoryId, setFilterCategoryId] = useState<number>(0);
-
-  // Pagination
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-
-  // [NEW] State Sắp xếp
-  const [sortBy, setSortBy] = useState<string>("id"); // Mặc định sắp xếp theo ID
-  const [sortDir, setSortDir] = useState<string>("desc"); // Mặc định giảm dần
+  const [sortBy, setSortBy] = useState<string>("id");
+  const [sortDir, setSortDir] = useState<string>("desc");
 
   // Modal & Form
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
 
+  // 🟢 FIX 3: Thêm state loading khi đang upload ảnh
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+
   const [formData, setFormData] = useState<ProductFormData>({
-    name: "", price: 0, stock: 0, description: "", categoryId: 0, thumbnail: ""
+    name: "", price: "", stock: "", description: "", categoryId: "", thumbnail: ""
   });
 
   // --- EFFECTS ---
-
-  // 1. Load danh mục
   useEffect(() => {
     fetchCategories(); 
   }, []);
 
-  // 2. Khi đổi Tab, Chế độ xem, Filter Category -> Reset về trang 1
   useEffect(() => {
     if (activeTab === 'products') {
         setPage(1);
-        // Khi đổi filter thì gọi lại API luôn (do page set lại 1 có thể không trigger effect dưới kịp thời)
         fetchProducts(1); 
     }
   }, [viewDeleted, activeTab, filterCategoryId]);
 
-  // 3. Khi đổi trang (Page) HOẶC đổi Sắp xếp (Sort) -> Gọi API
   useEffect(() => {
     if (activeTab === 'products') {
         fetchProducts(page);
     }
-  }, [page, sortBy, sortDir]); // [NEW] Thêm sortBy, sortDir vào dependency
+  }, [page, sortBy, sortDir]);
 
   // --- API CALLS ---
   const fetchProducts = async (pageNumber: number) => {
@@ -92,7 +82,6 @@ const ProductList: React.FC = () => {
         params: { 
             page: pageNumber, 
             size: 10, 
-            // [NEW] Sử dụng state sort động thay vì cứng
             sort: `${sortBy}:${sortDir}`, 
             isDeleted: viewDeleted,
             categoryId: filterCategoryId > 0 ? filterCategoryId : undefined 
@@ -117,8 +106,9 @@ const ProductList: React.FC = () => {
       const res = await api.get("/categories/list", {
         params: { sort: "id:asc", page: 1, size: 100 }, 
       });
-      if (res.data && res.data.status === 200 && res.data.data) {
-        setCategories(res.data.data.categories || res.data.data.content || []); 
+      // 🟢 FIX 1: Bỏ check cứng status = 200, lấy data linh hoạt hơn
+      if (res.data && res.data.data) {
+        setCategories(res.data.data.categories || res.data.data.content || res.data.data.items || res.data.data || []); 
       }
     } catch (error) {
       console.error("Lỗi tải danh mục:", error);
@@ -127,21 +117,16 @@ const ProductList: React.FC = () => {
   };
 
   // --- HANDLERS ---
-  
-  // [NEW] Hàm xử lý khi click vào tiêu đề cột
   const handleSort = (field: string) => {
     if (sortBy === field) {
-        // Nếu click lại cột cũ -> Đảo chiều
         setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     } else {
-        // Nếu click cột mới -> Set cột mới, mặc định giảm dần (desc)
         setSortBy(field);
         setSortDir('desc');
     }
-    setPage(1); // Reset về trang 1 khi sort
+    setPage(1); 
   };
 
-  // [NEW] Hàm render icon mũi tên
   const renderSortIcon = (field: string) => {
     if (sortBy !== field) return <span style={{ opacity: 0.3, fontSize: '12px', marginLeft: '5px' }}>⇅</span>;
     return <span style={{ marginLeft: '5px' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
@@ -149,7 +134,7 @@ const ProductList: React.FC = () => {
 
   const handleAddNew = () => {
     setIsEditMode(false);
-    setFormData({ name: "", price: 0, stock: 0, description: "", categoryId: 0, thumbnail: "" });
+    setFormData({ name: "", price: "", stock: "", description: "", categoryId: "", thumbnail: "" });
     setShowModal(true);
   };
 
@@ -158,7 +143,7 @@ const ProductList: React.FC = () => {
     setCurrentId(product.id);
     
     const cat = categories.find(c => c.name === product.categoryName);
-    const catId = cat ? cat.id : 0;
+    const catId = cat ? cat.id : "";
     const imgUrl = (product.images && product.images.length > 0) ? product.images[0].imageUrl : "";
 
     setFormData({
@@ -194,9 +179,37 @@ const ProductList: React.FC = () => {
     }
   };
 
+  // 🟢 FIX 3: Hàm xử lý Upload File ảnh lên Backend Spring Boot
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+
+    setIsUploading(true);
+    try {
+        const res = await api.post("/files/upload", uploadData, {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        });
+        
+        // Backend trả về: { status: 200, message: "...", url: "..." }
+        if (res.data && res.data.url) {
+            setFormData({ ...formData, thumbnail: res.data.url });
+        }
+    } catch (error: any) {
+        console.error("Upload error:", error);
+        alert("Lỗi upload ảnh: " + (error.response?.data || error.message));
+    } finally {
+        setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || formData.price <= 0 || formData.categoryId === 0) {
+    if (!formData.name || Number(formData.price) <= 0 || !formData.categoryId) {
       alert("Vui lòng nhập đủ thông tin (Tên, Giá > 0, Danh mục)!");
       return;
     }
@@ -204,10 +217,10 @@ const ProductList: React.FC = () => {
     try {
       const payload = {
         name: formData.name,
-        price: formData.price,
-        stock: formData.stock,
+        price: Number(formData.price), // Ép kiểu lại thành Number khi submit
+        stock: Number(formData.stock),
         description: formData.description,
-        categoryId: formData.categoryId,
+        categoryId: Number(formData.categoryId),
         imageUrls: formData.thumbnail ? [formData.thumbnail] : [] 
       };
 
@@ -223,7 +236,7 @@ const ProductList: React.FC = () => {
       fetchProducts(page);
     } catch (error: any) {
         const msg = error.response?.data?.message || "Có lỗi xảy ra";
-        alert(msg.includes("Data too long") ? "Link ảnh quá dài!" : msg);
+        alert(msg);
     }
   };
 
@@ -235,108 +248,67 @@ const ProductList: React.FC = () => {
     <div className="product-list-container">
         {/* TABS HEADER */}
         <div className="main-tabs" style={{ marginBottom: '20px', borderBottom: '2px solid #e5e7eb', paddingBottom: '15px' }}>
-            <button 
-                onClick={() => setActiveTab('products')}
+            <button onClick={() => setActiveTab('products')}
                 style={{
                     padding: '10px 24px', marginRight: '15px', border: 'none',
                     background: activeTab === 'products' ? '#4f46e5' : '#f3f4f6',
                     color: activeTab === 'products' ? 'white' : '#374151',
                     borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'
-                }}
-            >
+                }}>
                 🛍️ Quản lý Sản phẩm
             </button>
-            <button 
-                onClick={() => setActiveTab('categories')}
+            <button onClick={() => setActiveTab('categories')}
                 style={{
                     padding: '10px 24px', border: 'none',
                     background: activeTab === 'categories' ? '#4f46e5' : '#f3f4f6',
                     color: activeTab === 'categories' ? 'white' : '#374151',
                     borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'
-                }}
-            >
+                }}>
                 📂 Quản lý Danh mục
             </button>
         </div>
 
-        {/* LOGIC HIỂN THỊ */}
         {activeTab === 'categories' ? (
-            // === TAB DANH MỤC ===
             <CategoryList />
         ) : (
-            // === TAB SẢN PHẨM ===
             <>
+                {/* HEADERS & FILTERS... (Giữ nguyên như cũ) */}
                 <div className="page-header">
                     <h2 className="page-title">Sản phẩm</h2>
-                    
                     <div className="header-actions">
-                        
-                        {/* 1. Dropdown Lọc */}
-                        <select 
-                            className="category-filter"
-                            value={filterCategoryId}
-                            onChange={(e) => setFilterCategoryId(Number(e.target.value))}
-                        >
+                        <select className="category-filter" value={filterCategoryId} onChange={(e) => setFilterCategoryId(Number(e.target.value))}>
                             <option value={0}>-- Tất cả danh mục --</option>
                             {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                         </select>
 
-                        {/* 2. Nút Chế độ xem */}
-                        <button 
-                            className={`view-mode-btn ${!viewDeleted ? 'active-mode' : ''}`}
-                            onClick={() => setViewDeleted(false)}
-                        >
+                        <button className={`view-mode-btn ${!viewDeleted ? 'active-mode' : ''}`} onClick={() => setViewDeleted(false)}>
                             📦 Đang bán
                         </button>
-                        <button 
-                            className={`view-mode-btn ${viewDeleted ? 'active-mode' : ''}`}
-                            onClick={() => setViewDeleted(true)}
-                        >
+                        <button className={`view-mode-btn ${viewDeleted ? 'active-mode' : ''}`} onClick={() => setViewDeleted(true)}>
                             🗑️ Thùng rác
                         </button>
 
-                        {/* 3. Nút Thêm mới (Ẩn khi ở thùng rác) */}
                         {!viewDeleted && (
-                            <button className="btn-add" onClick={handleAddNew}>
-                                + Thêm mới
-                            </button>
+                            <button className="btn-add" onClick={handleAddNew}>+ Thêm mới</button>
                         )}
                     </div>
                 </div>
 
-                {/* TABLE */}
+                {/* TABLE (Giữ nguyên như cũ) */}
                 <div className="table-wrapper">
                     <table className="product-table">
                     <thead>
                         <tr>
-                            {/* [NEW] Thêm click event cho ID */}
-                            <th onClick={() => handleSort('id')} style={{cursor: 'pointer', userSelect: 'none'}}>
-                                ID {renderSortIcon('id')}
-                            </th>
-                            
+                            <th onClick={() => handleSort('id')} style={{cursor: 'pointer', userSelect: 'none'}}>ID {renderSortIcon('id')}</th>
                             <th>Ảnh</th>
-                            
-                            <th onClick={() => handleSort('name')} style={{cursor: 'pointer', userSelect: 'none'}}>
-                                Tên sản phẩm {renderSortIcon('name')}
-                            </th>
-                            
+                            <th onClick={() => handleSort('name')} style={{cursor: 'pointer', userSelect: 'none'}}>Tên sản phẩm {renderSortIcon('name')}</th>
                             <th>Danh mục</th>
-                            
-                            <th onClick={() => handleSort('price')} style={{cursor: 'pointer', userSelect: 'none'}}>
-                                Giá bán {renderSortIcon('price')}
-                            </th>
-                            
-                            {/* [NEW] Sửa phần Kho để click sort */}
-                            <th 
-                                onClick={() => handleSort('stock')} 
-                                style={{cursor: 'pointer', userSelect: 'none', backgroundColor: sortBy === 'stock' ? '#f0fdf4' : ''}}
-                                title="Click để sắp xếp tồn kho"
-                            >
+                            <th onClick={() => handleSort('price')} style={{cursor: 'pointer', userSelect: 'none'}}>Giá bán {renderSortIcon('price')}</th>
+                            <th onClick={() => handleSort('stock')} style={{cursor: 'pointer', userSelect: 'none', backgroundColor: sortBy === 'stock' ? '#f0fdf4' : ''}}>
                                 Kho {renderSortIcon('stock')}
                             </th>
-                            
                             <th>Hành động</th>
                         </tr>
                     </thead>
@@ -349,16 +321,13 @@ const ProductList: React.FC = () => {
                                 <tr key={p.id}>
                                 <td>#{p.id}</td>
                                 <td>
-                                    <img 
-                                    src={(p.images?.[0]?.imageUrl) || "https://placehold.co/50x50?text=No+Img"} 
+                                    <img src={(p.images?.[0]?.imageUrl) || "https://placehold.co/50x50?text=No+Img"} 
                                     alt="" className="product-thumb"
-                                    onError={(e) => (e.target as HTMLImageElement).src = "https://placehold.co/50x50?text=Error"}
-                                    />
+                                    onError={(e) => (e.target as HTMLImageElement).src = "https://placehold.co/50x50?text=Error"}/>
                                 </td>
                                 <td className="product-name-cell"><strong>{p.name}</strong></td>
                                 <td>{p.categoryName || "---"}</td>
                                 <td className="text-price">{formatCurrency(p.price)}</td>
-                                {/* Hightlight cột stock nếu đang sort theo stock */}
                                 <td style={{ backgroundColor: sortBy === 'stock' ? '#f0fdf4' : '' }}>
                                     <span className={`stock-badge ${p.stock > 0 ? 'in-stock' : 'out-stock'}`}>
                                         {p.stock}
@@ -372,9 +341,7 @@ const ProductList: React.FC = () => {
                                             <button className="btn-delete" onClick={() => handleDelete(p.id)}>Xóa</button>
                                         </>
                                     ) : (
-                                        <button className="btn-restore" onClick={() => handleRestore(p.id)}>
-                                            ♻️ Khôi phục
-                                        </button>
+                                        <button className="btn-restore" onClick={() => handleRestore(p.id)}>♻️ Khôi phục</button>
                                     )}
                                     </div>
                                 </td>
@@ -390,14 +357,13 @@ const ProductList: React.FC = () => {
                     </table>
                 </div>
 
-                {/* PAGINATION */}
                 <div className="pagination">
                     <button disabled={page === 1} onClick={() => setPage(page - 1)}>« Trước</button>
                     <span>Trang {page} / {totalPages}</span>
                     <button disabled={page === totalPages} onClick={() => setPage(page + 1)}>Sau »</button>
                 </div>
 
-                {/* MODAL */}
+                {/* MODAL (ĐÃ CẬP NHẬT FORM) */}
                 {showModal && !viewDeleted && (
                     <div className="modal-overlay">
                     <div className="modal-content">
@@ -410,40 +376,67 @@ const ProductList: React.FC = () => {
                             <label>Tên sản phẩm *</label>
                             <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
                         </div>
+                        
+                        {/* 🟢 Sửa input thành kiểu text/number và chặn nhập chuỗi linh tinh */}
                         <div className="form-row">
                             <div className="form-group">
                             <label>Giá (VNĐ) *</label>
-                            <input type="number" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} required />
+                            <input type="number" min="0" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required />
                             </div>
                             <div className="form-group">
                             <label>Số lượng kho *</label>
-                            <input type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} required />
+                            <input type="number" min="0" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required />
                             </div>
                         </div>
+
                         <div className="form-group">
                             <label>Danh mục *</label>
-                            <select value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: Number(e.target.value)})} required>
-                            <option value={0}>-- Chọn danh mục --</option>
+                            <select value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})} required>
+                            <option value="">-- Chọn danh mục --</option>
                             {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                             </select>
                         </div>
+
+                        {/* 🟢 Khu vực Upload File hoặc Nhập Link */}
                         <div className="form-group">
-                            <label>Link ảnh (URL)</label>
-                            <input type="text" value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} />
+                            <label>Ảnh sản phẩm (Tải lên từ máy hoặc dán link web)</label>
+                            {/* Input File */}
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={handleFileUpload} 
+                                style={{ marginBottom: '10px' }}
+                            />
+                            
+                            {isUploading && <p style={{ color: 'blue', fontSize: '13px' }}>Đang tải ảnh lên hệ thống...</p>}
+                            
+                            {/* 🟢 Bỏ readOnly, cho phép nhập text trực tiếp */}
+                            <input 
+                                type="text" 
+                                placeholder="Hoặc dán trực tiếp link ảnh copy trên mạng vào đây..."
+                                value={formData.thumbnail} 
+                                onChange={e => setFormData({...formData, thumbnail: e.target.value})}
+                            />
+
                             {formData.thumbnail && (
                                 <img src={formData.thumbnail} alt="Preview" className="img-preview" 
-                                onError={(e) => (e.target as HTMLImageElement).src = "https://placehold.co/100x100?text=Error"}/>
+                                style={{ marginTop: '10px', maxWidth: '100px', borderRadius: '8px', objectFit: 'cover' }}
+                                onError={(e) => (e.target as HTMLImageElement).src = "https://placehold.co/100x100?text=Lỗi+Ảnh"}/>
                             )}
                         </div>
+
                         <div className="form-group">
                             <label>Mô tả</label>
                             <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
                         </div>
                         <div className="modal-actions">
                             <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Hủy</button>
-                            <button type="submit" className="btn-save">Lưu lại</button>
+                            {/* Disabled nút submit nếu đang upload dở ảnh */}
+                            <button type="submit" className="btn-save" disabled={isUploading}>
+                                {isUploading ? "Đang xử lý..." : "Lưu lại"}
+                            </button>
                         </div>
                         </form>
                     </div>

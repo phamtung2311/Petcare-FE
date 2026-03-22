@@ -94,7 +94,7 @@ const Booking: React.FC = () => {
   const fetchMyPets = async () => {
     if (!userId) return;
     try {
-      const res = await api.get(`/pets/${userId}`);
+      const res = await api.get(`/pets/my-pets`);
       if (res.data && Array.isArray(res.data.data)) {
         setMyPets(res.data.data);
       }

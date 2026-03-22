@@ -3,6 +3,17 @@ import api from "../../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import "./MyPets.css";
 
+// --- TỪ ĐIỂN DỮ LIỆU THÚ CƯNG ---
+const PET_SPECIES = ["Chó", "Mèo", "Chim", "Hamster", "Khác"];
+
+const PET_BREEDS: Record<string, string[]> = {
+  "Chó": ["Poodle", "Pug", "Husky", "Corgi", "Golden Retriever", "Shiba", "Phốc sóc (Pomeranian)", "Chó ta", "Khác"],
+  "Mèo": ["Anh lông ngắn (ALN)", "Anh lông dài (ALD)", "Mèo Ba Tư", "Mèo Xiêm", "Mèo ta", "Khác"],
+  "Chim": ["Vẹt", "Chào mào", "Họa mi", "Khác"],
+  "Hamster": ["Bear", "Winter White", "Robo", "Khác"],
+  "Khác": ["Chưa xác định"]
+};
+
 // 1. Interface cho dữ liệu hiển thị
 interface Pet {
   id: number;
@@ -26,13 +37,14 @@ interface Appointment {
   totalAmount: number;
 }
 
-// 2. Interface cho dữ liệu gửi đi
+// 2. Interface cho dữ liệu gửi đi (Đã thêm biến custom để nhập tay)
 interface PetFormData {
   id?: number;
-  ownerId: number;
   name: string;
   species: string;
+  customSpecies?: string;
   breed: string;
+  customBreed?: string;
   color: string;
   sex: string;
   birthDate: string;
@@ -51,13 +63,14 @@ const MyPets: React.FC = () => {
   const [historyList, setHistoryList] = useState<Appointment[]>([]);
   const [selectedPetName, setSelectedPetName] = useState("");
 
-  const currentUserId = Number(localStorage.getItem("userId"));
+  const currentUserId = Number(localStorage.getItem("userId")); 
 
   const [formData, setFormData] = useState<PetFormData>({
-    ownerId: currentUserId,
     name: "",
     species: "",
+    customSpecies: "",
     breed: "",
+    customBreed: "",
     color: "",
     sex: "male", 
     birthDate: "",
@@ -103,9 +116,8 @@ const MyPets: React.FC = () => {
 
   // --- API CALLS ---
   const fetchMyPets = async () => {
-    if (!currentUserId) return;
     try {
-      const res = await api.get(`/pets/${currentUserId}`);
+      const res = await api.get(`/pets/my-pets`);
       if (res.data && Array.isArray(res.data.data)) {
          setPets(res.data.data);
       } else {
@@ -118,7 +130,6 @@ const MyPets: React.FC = () => {
     }
   };
 
-  // HÀM MỚI: Lấy lịch sử dịch vụ
   const handleViewHistory = async (pet: Pet) => {
     setSelectedPetName(pet.name);
     try {
@@ -141,6 +152,7 @@ const MyPets: React.FC = () => {
     } else {
       fetchMyPets();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, navigate]);
 
   // --- HANDLERS FORM ---
@@ -152,10 +164,11 @@ const MyPets: React.FC = () => {
   const openAddModal = () => {
     setIsEditing(false);
     setFormData({
-      ownerId: currentUserId,
       name: "",
       species: "",
+      customSpecies: "",
       breed: "",
+      customBreed: "",
       color: "",
       sex: "male",
       birthDate: "",
@@ -165,12 +178,24 @@ const MyPets: React.FC = () => {
 
   const openEditModal = (pet: Pet) => {
     setIsEditing(true);
+    
+    // Logic kiểm tra xem loài/giống của pet có nằm trong danh sách mặc định không
+    const isSpeciesDefault = PET_SPECIES.includes(pet.species);
+    const petSpecies = isSpeciesDefault ? pet.species : "Khác";
+    const customSpecies = isSpeciesDefault ? "" : pet.species;
+
+    const breedList = PET_BREEDS[petSpecies] || [];
+    const isBreedDefault = breedList.includes(pet.breed);
+    const petBreed = isBreedDefault ? pet.breed : "Khác";
+    const customBreed = isBreedDefault ? "" : pet.breed;
+
     setFormData({
       id: pet.id,
-      ownerId: currentUserId, 
       name: pet.name,
-      species: pet.species,
-      breed: pet.breed,
+      species: petSpecies,
+      customSpecies: customSpecies,
+      breed: petBreed,
+      customBreed: customBreed,
       color: pet.color,
       sex: pet.sex.toLowerCase(),
       birthDate: pet.birthDate,
@@ -181,7 +206,25 @@ const MyPets: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...formData, ownerId: currentUserId };
+      // Logic gộp dữ liệu: Chọn "Khác" thì lấy dữ liệu tự gõ
+      const finalSpecies = formData.species === "Khác" ? formData.customSpecies : formData.species;
+      const finalBreed = formData.breed === "Khác" ? formData.customBreed : formData.breed;
+
+      if (!finalSpecies || !finalBreed) {
+          alert("Vui lòng nhập đầy đủ Loài và Giống thú cưng!");
+          return;
+      }
+
+      const payload = { 
+          id: formData.id,
+          name: formData.name,
+          species: finalSpecies,
+          breed: finalBreed,
+          color: formData.color,
+          sex: formData.sex,
+          birthDate: formData.birthDate
+      };
+
       if (isEditing) {
         await api.put("/pets/upd", payload);
         alert("Cập nhật thành công!");
@@ -264,16 +307,65 @@ const MyPets: React.FC = () => {
                   <label>Tên thú cưng *</label>
                   <input className="neo-input" type="text" name="name" value={formData.name} onChange={handleInputChange} required placeholder="Ví dụ: Milu" />
                 </div>
+                
+                {/* 🟢 KHU VỰC CHỌN LOÀI VÀ GIỐNG ĐÃ NÂNG CẤP */}
                 <div className="form-row-2">
                   <div className="form-group">
-                    <label>Loại (Species) *</label>
-                    <input className="neo-input" type="text" name="species" value={formData.species} onChange={handleInputChange} required placeholder="VD: Chó, Mèo..." />
+                    <label>Loài (Species) *</label>
+                    <select 
+                        className="neo-input" 
+                        name="species" 
+                        value={formData.species} 
+                        onChange={(e) => setFormData({ ...formData, species: e.target.value, breed: "", customSpecies: "" })} 
+                        required
+                    >
+                        <option value="" disabled>-- Chọn loài --</option>
+                        {PET_SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    
+                    {formData.species === "Khác" && (
+                        <input 
+                            className="neo-input" 
+                            type="text" 
+                            style={{ marginTop: '10px' }}
+                            placeholder="Nhập tên loài..." 
+                            value={formData.customSpecies || ""} 
+                            onChange={(e) => setFormData({ ...formData, customSpecies: e.target.value })} 
+                            required 
+                        />
+                    )}
                   </div>
+                  
                   <div className="form-group">
-                    <label>Giống (Breed)</label>
-                    <input className="neo-input" type="text" name="breed" value={formData.breed} onChange={handleInputChange} placeholder="VD: Poodle..." />
+                    <label>Giống (Breed) *</label>
+                    <select 
+                        className="neo-input" 
+                        name="breed" 
+                        value={formData.breed} 
+                        onChange={(e) => setFormData({ ...formData, breed: e.target.value, customBreed: "" })} 
+                        required
+                        disabled={!formData.species}
+                    >
+                        <option value="" disabled>-- Chọn giống --</option>
+                        {formData.species && PET_BREEDS[formData.species]?.map(b => (
+                            <option key={b} value={b}>{b}</option>
+                        ))}
+                    </select>
+
+                    {formData.breed === "Khác" && (
+                        <input 
+                            className="neo-input" 
+                            type="text" 
+                            style={{ marginTop: '10px' }}
+                            placeholder="Nhập tên giống..." 
+                            value={formData.customBreed || ""} 
+                            onChange={(e) => setFormData({ ...formData, customBreed: e.target.value })} 
+                            required 
+                        />
+                    )}
                   </div>
                 </div>
+
                 <div className="form-row-2">
                   <div className="form-group">
                     <label>Giới tính</label>
@@ -289,7 +381,7 @@ const MyPets: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label>Ngày sinh *</label>
-                  <input className="neo-input" type="date" name="birthDate" value={formData.birthDate} onChange={handleInputChange} required />
+                  <input className="neo-input" type="date" name="birthDate" max={new Date().toISOString().split("T")[0]} value={formData.birthDate} onChange={handleInputChange} required />
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="btn-modern secondary" onClick={() => setShowModal(false)}>Hủy</button>

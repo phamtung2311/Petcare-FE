@@ -12,7 +12,7 @@ interface ContactButtonsProps {
 const ContactButtons: React.FC<ContactButtonsProps> = ({ onToggleChat, isOpen }) => {
 
     // --- CẤU HÌNH SỐ ĐIỆN THOẠI ZALO CỦA BẠN TẠI ĐÂY ---
-    const MY_ZALO_PHONE = "0395052871"; 
+    const MY_ZALO_PHONE = "0389055589"; 
 
     return (
         <div style={styles.container}>
