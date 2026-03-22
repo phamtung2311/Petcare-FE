@@ -7,7 +7,7 @@ import type {
 } from "axios";
 
 const api: AxiosInstance = axios.create({
-  baseURL: "http://localhost:8080", // đúng port BE
+  baseURL: "https://petcare-backend-api.onrender.com", 
   timeout: 5000,
   headers: {
     "Content-Type": "application/json",

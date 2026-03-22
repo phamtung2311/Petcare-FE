@@ -9,7 +9,7 @@ import "./index.css";
 import Customer from "./components/Customer/Customer";
 import UserProfile from "./components/User/UserProfile";
 import Register from "./components/Register/Register";
-import ForgotPassword from "./components/Login/ForgotPassword"; // 🟢 FILE MỚI
+import ForgotPassword from "./components/Login/ForgotPassword";
 import MyPets from "./components/Customer/MyPets/MyPets";
 import Promotions from "./components/Header/Promotions/Promotions";
 import Checkout from "./components/Customer/Checkout/Checkout";
